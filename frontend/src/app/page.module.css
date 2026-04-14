@@ -1,0 +1,46 @@
+.page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  background: #f5f7fb;
+}
+
+.main {
+  width: min(760px, 100%);
+  margin: 64px 16px;
+  padding: 28px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  font-family: Arial, sans-serif;
+}
+
+.main h1 {
+  margin: 0 0 8px;
+  font-size: 2rem;
+}
+
+.main p {
+  margin: 0 0 16px;
+  color: #334155;
+}
+
+.statusCard {
+  padding: 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.statusCard h2 {
+  margin-top: 0;
+}
+
+.ok {
+  color: #166534;
+  font-weight: 700;
+}
+
+.error {
+  color: #991b1b;
+  font-weight: 700;
+}

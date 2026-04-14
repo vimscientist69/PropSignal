@@ -1,0 +1,17 @@
+# Baseline scoring weights used by the deal scoring engine.
+# Keep values normalized to total ~1.0 for easy interpretation.
+weights:
+  price_deviation: 0.35
+  time_on_market: 0.2
+  feature_value: 0.2
+  liquidity: 0.15
+  confidence: 0.1
+
+rules:
+  stale_inventory_days: 90
+  minimum_confidence: 0.6
+  outlier_zscore_threshold: 2.5
+
+flags:
+  enable_liquidity_signal: true
+  enable_feature_signal: true
