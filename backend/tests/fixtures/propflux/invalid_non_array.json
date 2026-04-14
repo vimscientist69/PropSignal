@@ -1,0 +1,9 @@
+{
+  "title": "This should be an array root",
+  "price": 1000000,
+  "location": "Somewhere",
+  "bedrooms": 2,
+  "bathrooms": 1,
+  "property_type": "House",
+  "description": "Invalid root type."
+}

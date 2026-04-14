@@ -1,0 +1,11 @@
+---
+description: Enforce CLI-first delivery before Week 3 dashboard scope
+alwaysApply: true
+---
+
+# CLI-First Roadmap
+
+- Before Week 3, prioritize CLI and backend pipeline behavior over dashboard features.
+- UI work should remain placeholder-level unless required for environment smoke checks.
+- New feature workflows must expose a CLI command or service entrypoint first.
+- Keep API endpoints thin and aligned with CLI orchestration contracts.

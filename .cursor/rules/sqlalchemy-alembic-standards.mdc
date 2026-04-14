@@ -1,0 +1,13 @@
+---
+description: SQLAlchemy and Alembic standards for schema lifecycle
+globs: backend/**/*.{py,ini}
+alwaysApply: false
+---
+
+# SQLAlchemy Alembic Standards
+
+- Model changes require migration updates in the same change set.
+- Keep table and column names explicit and stable for analytical workloads.
+- Use nullable/index defaults intentionally; do not rely on implicit behavior.
+- Ensure migrations are idempotent and reversible via `downgrade`.
+- Run migration checks in CI for schema safety.

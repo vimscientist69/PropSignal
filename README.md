@@ -1,6 +1,14 @@
 # PropSignal
 
-PropSignal is a real estate deal intelligence platform that ingests listing datasets, scores opportunities, and exposes analytics through an API and dashboard.
+PropSignal is a real estate deal intelligence platform. Pre-Week-1 delivery is CLI-first with Docker
+Compose orchestration, PostgreSQL persistence, and a strict PropFlux JSON ingestion contract.
+
+## Current Scope Guardrails
+
+- Pre-Week-1 and Week 1 focus on CLI ingestion, data normalization, scoring, and persistence.
+- Frontend is intentionally placeholder-only for environment parity before Week 3.
+- Supported input format is PropFlux-style JSON arrays only.
+- Schema and contract are documented in `docs/data-contract-propflux.md`.
 
 ## Monorepo Layout
 
@@ -17,20 +25,33 @@ PropSignal is a real estate deal intelligence platform that ingests listing data
 - Python `3.11.x`
 - Node.js `20.x` (LTS)
 - npm `10+`
+- Docker + Docker Compose plugin
 
 ## Quick Start
 
-1. Create and activate a Python virtual environment:
-   - `python3.11 -m venv .venv`
-   - `source .venv/bin/activate`
-2. Install backend dependencies:
-   - `pip install -r backend/requirements-dev.txt`
-3. Install frontend dependencies:
-   - `npm --prefix frontend install`
-4. Copy environment templates:
+1. Copy environment templates:
    - `cp .env.example .env`
    - `cp backend/.env.example backend/.env`
    - `cp frontend/.env.local.example frontend/.env.local`
+2. Install local dependencies:
+   - `./scripts/setup.sh`
+
+## Docker Compose Workflow (Recommended)
+
+- Start full stack:
+  - `./scripts/compose-up.sh`
+- Stop stack:
+  - `./scripts/compose-down.sh`
+- Stream logs:
+  - `./scripts/compose-logs.sh`
+- Apply migrations in container:
+  - `./scripts/migrate-docker.sh`
+
+Services:
+
+- frontend: `http://localhost:3000`
+- backend: `http://localhost:8000`
+- postgres: `localhost:5432`
 
 ## Local Development
 
@@ -38,6 +59,22 @@ PropSignal is a real estate deal intelligence platform that ingests listing data
   - `./scripts/run-backend.sh`
 - Run frontend:
   - `./scripts/run-frontend.sh`
+- Apply migrations locally:
+  - `./scripts/migrate.sh`
+
+## CLI Workflow
+
+- Local CLI:
+  - `./scripts/cli-local.sh --help`
+- Docker CLI:
+  - `./scripts/cli-docker.sh --help`
+
+Core commands:
+
+- `ingest <path>`
+- `score <job-id>`
+- `analyze <job-id>`
+- `export <job-id> --format json|csv`
 
 ## Quality Checks
 
@@ -52,5 +89,5 @@ PropSignal is a real estate deal intelligence platform that ingests listing data
 
 GitHub Actions workflow runs:
 
-- backend lint, type checks, and tests
+- backend lint, type checks, migrations, and tests
 - frontend lint, type checks, and build checks

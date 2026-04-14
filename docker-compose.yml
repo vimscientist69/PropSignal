@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: propsignal-postgres
+    environment:
+      POSTGRES_USER: propsignal
+      POSTGRES_PASSWORD: propsignal
+      POSTGRES_DB: propsignal
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U propsignal -d propsignal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: propsignal-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      APP_NAME: PropSignal API
+      ENVIRONMENT: development
+      API_PREFIX: /api/v1
+      FRONTEND_URL: http://localhost:3000
+      DATABASE_URL: postgresql+psycopg://propsignal:propsignal@postgres:5432/propsignal
+      ALEMBIC_DATABASE_URL: postgresql+psycopg://propsignal:propsignal@postgres:5432/propsignal
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: propsignal-frontend
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8000
+    volumes:
+      - ./frontend:/app
+      - frontend_node_modules:/app/node_modules
+    ports:
+      - "3000:3000"
+    command: npm run dev -- --hostname 0.0.0.0 --port 3000
+
+volumes:
+  postgres_data:
+  frontend_node_modules:

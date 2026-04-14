@@ -1,0 +1,11 @@
+---
+description: Preserve local dev parity through docker-compose workflows
+alwaysApply: true
+---
+
+# Docker Compose Dev Parity
+
+- Infra-facing changes must be runnable through `docker compose` workflows.
+- Keep service env vars consistent between local scripts and compose services.
+- Update compose helper scripts and docs when service ports, commands, or dependencies change.
+- Prefer deterministic startup via health checks and explicit service dependencies.

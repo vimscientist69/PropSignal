@@ -1,0 +1,13 @@
+---
+description: Enforce PropFlux-only JSON contract and validation invariants
+globs: backend/**/*.{py,json,md}
+alwaysApply: false
+---
+
+# PropFlux Contract Enforcement
+
+- Supported ingestion format is only PropFlux-style JSON arrays of listing objects.
+- Required fields: `title`, `price`, `location`, `bedrooms`, `bathrooms`, `property_type`, `description`.
+- Keep runtime schema and docs synchronized when fields change.
+- Reject malformed input with explicit validation errors (index and field-level context).
+- Add fixture coverage for valid payloads and each invalid class of payload.
