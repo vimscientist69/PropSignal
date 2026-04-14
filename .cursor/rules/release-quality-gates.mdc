@@ -1,0 +1,12 @@
+---
+description: Required quality gates before merge or release
+alwaysApply: true
+---
+
+# Release Quality Gates
+
+- Run `./scripts/lint.sh` and `./scripts/test.sh` before opening a PR.
+- For frontend-impacting changes, also run `npm --prefix frontend run build`.
+- Keep CI green: backend lint/type/tests and frontend lint/type/build must pass.
+- Update `docs/configuration.md` or `docs/setup-checklist.md` when setup changes.
+- Prefer fixing root causes over disabling checks or bypassing hooks.

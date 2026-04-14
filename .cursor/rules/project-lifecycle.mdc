@@ -1,0 +1,14 @@
+---
+description: Project lifecycle defaults from setup to release
+alwaysApply: true
+---
+
+# Project Lifecycle
+
+- Start by checking current repo state and existing conventions before editing.
+- Prefer small, verifiable changes with clear rationale and explicit scope.
+- Update docs when behavior, setup, scripts, or configuration changes.
+- Keep local developer experience reproducible: scripts should work from repo root.
+- Never commit secrets, `.env` files, generated artifacts, or local machine state.
+- Before wrapping up, run lint, tests, and relevant build checks.
+- Report blockers early with the exact failing command and likely cause.

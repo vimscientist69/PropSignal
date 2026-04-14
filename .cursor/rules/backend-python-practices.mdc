@@ -1,0 +1,14 @@
+---
+description: Backend Python and FastAPI implementation standards
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Backend Python Practices
+
+- Use explicit typing and keep `mypy` clean for new backend code.
+- Place API routes under `backend/app/api/` and shared config in `backend/app/core/`.
+- Keep service/domain logic in `backend/app/services/`; route handlers stay thin.
+- Validate request/response boundaries with typed models where appropriate.
+- Add or update tests in `backend/tests/` for changed behavior.
+- Keep imports sorted and formatting compliant with `ruff` and `black`.

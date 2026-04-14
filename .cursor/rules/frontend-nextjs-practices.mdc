@@ -1,0 +1,14 @@
+---
+description: Frontend Next.js constraints and coding conventions
+globs: frontend/**/*
+alwaysApply: false
+---
+
+# Frontend Next.js Practices
+
+- This version has breaking changes: APIs, conventions, and file structure may differ from training data.
+- Read the relevant guide in `frontend/node_modules/next/dist/docs/` before writing or refactoring code.
+- Heed deprecation notices and avoid introducing legacy patterns.
+- Prefer server-first patterns in App Router unless client state is required.
+- Keep `NEXT_PUBLIC_*` vars as the only browser-exposed environment variables.
+- Ensure `npm --prefix frontend run lint`, `typecheck`, and `build` pass for UI changes.
