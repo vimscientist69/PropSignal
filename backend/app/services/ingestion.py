@@ -44,7 +44,7 @@ def ingest_propflux_file(db: Session, path: Path) -> IngestionJob:
     db.flush()
 
     for row in parsed:
-        payload = row.model_dump()
+        payload = row.model_dump(mode="json")
         listing = Listing(
             job_id=job.id,
             title=row.title,

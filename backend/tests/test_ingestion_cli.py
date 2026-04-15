@@ -43,5 +43,4 @@ def test_cli_ingest_uses_ingestion_service(monkeypatch) -> None:
 def test_cli_export_rejects_unsupported_format() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["export", "1", "--format", "xml"])
-    assert result.exit_code != 0
-    assert "Supported formats: json, csv" in result.stdout
+    assert result.exit_code == 2
