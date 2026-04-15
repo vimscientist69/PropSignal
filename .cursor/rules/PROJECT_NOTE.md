@@ -184,6 +184,33 @@ Supports:
 
 ---
 
+## **3A. LLM-Assisted Listing Intelligence (Optional, Post-Baseline)**
+
+Objective:
+- extract additional high-signal variables from unstructured listing descriptions
+- improve score representativeness for real purchasing decisions
+- preserve explainability with structured, auditable feature outputs
+
+Candidate LLM-derived variables:
+- seller urgency language intensity
+- hidden condition/renovation risk indicators
+- amenity quality and property condition cues
+- contextual location quality signals not present in structured fields
+- risk flags (legal, disclosure, or unusual wording)
+
+Integration model:
+- run LLM enrichment as an optional pre-scoring feature extraction stage
+- persist extracted outputs as structured features
+- incorporate features as additional weighted scoring signals
+- keep deterministic fallback scoring when LLM is unavailable
+
+Validation gate (required before default enablement):
+- compare baseline vs LLM-augmented scoring on labeled evaluation slices
+- measure high-score precision uplift and false-positive rate impact
+- enable by default only when improvements are consistent and material
+
+---
+
 ## **4. Data Analytics & Visualization (HIGH PRIORITY)**
 
 ### **Dashboard Analytics**
@@ -356,6 +383,26 @@ README.md
 
 # **🚀 Execution Plan (2–4 Weeks)**
 
+## **Scope Control (Finish in < 1 Month)**
+
+Must-have before release:
+- accurate ingestion + normalization
+- baseline + advanced scoring that is explainable
+- analytics + API + usable dashboard
+- deployment + validation on 10k+ listings
+
+High-ROI additions (time-boxed, no indefinite expansion):
+- local comparables refinement (location/type/bedroom segmented medians)
+- rental-yield and transaction-cost adjustments
+- LLM feature extraction prototype (optional, gated)
+
+Deferred unless core goals are already complete:
+- multi-provider external data integrations beyond one high-impact source
+- broad geospatial or macroeconomic modeling
+- extensive experimentation not tied to measurable precision uplift
+
+---
+
 ## **Week 1**
 
 - data ingestion + normalization
@@ -369,6 +416,9 @@ README.md
 - advanced scoring system
 - reasoning engine
 - analytics engine
+- local comparables refinement (micro-segmented pricing signals)
+- rental-yield + transaction-cost scoring adjustments
+- optional LLM enrichment prototype (description parsing + feature extraction + offline validation)
 
 ---
 
@@ -377,6 +427,8 @@ README.md
 - API development
 - dashboard UI
 - analytics visualizations
+- decision gate: enable LLM-derived signals by default only if Week 2 validation improves deal-quality metrics
+- optional: integrate one high-impact external data source only if it improves precision on top-ranked deals
 
 ---
 

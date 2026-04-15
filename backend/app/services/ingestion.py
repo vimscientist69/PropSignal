@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +59,13 @@ def _upsert_normalized_listing(
     if existing is None:
         existing = db.scalar(select(Listing).where(Listing.source_hash == source_hash))
 
+    date_posted_value = payload.get("date_posted")
+    scraped_at_value = payload.get("scraped_at")
+    if isinstance(date_posted_value, str):
+        date_posted_value = date.fromisoformat(date_posted_value)
+    if isinstance(scraped_at_value, str):
+        scraped_at_value = datetime.fromisoformat(scraped_at_value)
+
     data = {
         "job_id": job_id,
         "source_hash": source_hash,
@@ -73,7 +80,7 @@ def _upsert_normalized_listing(
         "agent_phone": payload.get("agent_phone"),
         "agency_name": payload.get("agency_name"),
         "listing_id": payload.get("listing_id"),
-        "date_posted": payload.get("date_posted"),
+        "date_posted": date_posted_value,
         "erf_size": payload.get("erf_size"),
         "floor_size": payload.get("floor_size"),
         "rates_and_taxes": payload.get("rates_and_taxes"),
@@ -92,7 +99,7 @@ def _upsert_normalized_listing(
         "is_auction": payload.get("is_auction"),
         "is_private_seller": payload.get("is_private_seller"),
         "source_site": payload.get("source_site"),
-        "scraped_at": payload.get("scraped_at"),
+        "scraped_at": scraped_at_value,
         "normalized_payload": payload,
     }
 
