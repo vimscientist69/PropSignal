@@ -16,8 +16,13 @@ def ingest(path: str) -> None:
     input_path = Path(path)
     with SessionLocal() as db:
         job = ingest_propflux_file(db, input_path)
-    typer.echo(f"Ingestion completed. job_id={job.id}")
-    typer.echo("records_total=" f"{job.records_total}, records_valid={job.records_valid}")
+    typer.echo(f"Ingestion completed. job_id={job.id}, status={job.status}")
+    typer.echo(
+        "records_total="
+        f"{job.records_total}, "
+        f"records_valid={job.records_valid}, "
+        f"records_invalid={job.records_invalid}"
+    )
 
 
 @app.command()

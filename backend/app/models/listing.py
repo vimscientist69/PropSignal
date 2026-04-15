@@ -8,10 +8,13 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -20,9 +23,20 @@ from app.db.base_class import Base
 
 class Listing(Base):
     __tablename__ = "listings"
+    __table_args__ = (
+        UniqueConstraint("source_hash", name="uq_listings_source_hash"),
+        Index(
+            "uq_listings_source_site_listing_id_not_null",
+            "source_site",
+            "listing_id",
+            unique=True,
+            postgresql_where=text("listing_id IS NOT NULL AND source_site IS NOT NULL"),
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     job_id: Mapped[int] = mapped_column(ForeignKey("ingestion_jobs.id"), index=True)
+    source_hash: Mapped[str] = mapped_column(String(64))
 
     # Required PropFlux fields
     title: Mapped[str] = mapped_column(String(512))
@@ -61,5 +75,5 @@ class Listing(Base):
     source_site: Mapped[str | None] = mapped_column(String(128), nullable=True)
     scraped_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
-    raw_payload: Mapped[dict[str, Any]] = mapped_column(JSON)
+    normalized_payload: Mapped[dict[str, Any]] = mapped_column(JSON)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

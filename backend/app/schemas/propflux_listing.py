@@ -8,6 +8,13 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, ValidationError
 
 
+class RecordValidationError(BaseModel):
+    record_index: int
+    error_code: str
+    error_detail: str
+    payload: dict[str, Any]
+
+
 class PropfluxListing(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -64,3 +71,42 @@ def validate_propflux_payload(payload: Any) -> list[PropfluxListing]:
 def load_propflux_file(path: Path) -> list[PropfluxListing]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     return validate_propflux_payload(payload)
+
+
+def load_propflux_payload(path: Path) -> Any:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def validate_propflux_payload_partial(
+    payload: Any,
+) -> tuple[list[tuple[int, PropfluxListing]], list[RecordValidationError]]:
+    if not isinstance(payload, list):
+        raise ValueError("PropFlux payload must be a JSON array of listing objects.")
+
+    valid: list[tuple[int, PropfluxListing]] = []
+    invalid: list[RecordValidationError] = []
+
+    for index, row in enumerate(payload):
+        if not isinstance(row, dict):
+            invalid.append(
+                RecordValidationError(
+                    record_index=index,
+                    error_code="invalid_record_type",
+                    error_detail="Record must be a JSON object",
+                    payload={"_raw": row},
+                )
+            )
+            continue
+        try:
+            parsed = PropfluxListing.model_validate(row)
+            valid.append((index, parsed))
+        except ValidationError as exc:
+            invalid.append(
+                RecordValidationError(
+                    record_index=index,
+                    error_code="validation_error",
+                    error_detail=exc.json(),
+                    payload=row,
+                )
+            )
+    return valid, invalid

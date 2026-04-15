@@ -1,0 +1,24 @@
+[
+  {
+    "title": "3 Bedroom House in Blanco",
+    "price": 2550000.0,
+    "location": "192 mountain view estate, 192 witteberg close",
+    "bedrooms": 3,
+    "bathrooms": 2.0,
+    "property_type": "House",
+    "description": "First version.",
+    "listing_id": "T5421202",
+    "source_site": "privateproperty"
+  },
+  {
+    "title": "3 Bedroom House in Blanco Updated",
+    "price": 2550000.0,
+    "location": "192 mountain view estate, 192 witteberg close",
+    "bedrooms": 3,
+    "bathrooms": 2.0,
+    "property_type": "House",
+    "description": "Second version should upsert.",
+    "listing_id": "T5421202",
+    "source_site": "privateproperty"
+  }
+]

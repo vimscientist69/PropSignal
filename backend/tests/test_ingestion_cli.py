@@ -29,7 +29,13 @@ def test_cli_ingest_uses_ingestion_service(monkeypatch) -> None:
 
     def fake_ingest_propflux_file(db, path: Path):
         assert path == temp_file
-        return SimpleNamespace(id=42, records_total=1, records_valid=1)
+        return SimpleNamespace(
+            id=42,
+            status="completed",
+            records_total=1,
+            records_valid=1,
+            records_invalid=0,
+        )
 
     monkeypatch.setattr("app.cli.SessionLocal", DummySession)
     monkeypatch.setattr("app.cli.ingest_propflux_file", fake_ingest_propflux_file)
@@ -38,6 +44,7 @@ def test_cli_ingest_uses_ingestion_service(monkeypatch) -> None:
 
     assert result.exit_code == 0
     assert "job_id=42" in result.stdout
+    assert "records_invalid=0" in result.stdout
 
 
 def test_cli_export_rejects_unsupported_format() -> None:

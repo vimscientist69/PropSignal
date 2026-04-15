@@ -12,7 +12,9 @@ PropSignal is CLI-first before Week 3. Commands are implemented in `backend/app/
 ## Command Reference
 
 - `ingest <path>`
-  - Validates PropFlux payload and stores ingestion job + listings in Postgres.
+  - Runs partial-accept ingestion.
+  - Persists raw records, normalized canonical listings, and rejected records.
+  - Prints job summary: status, total/valid/invalid counts.
 - `score <job-id>`
   - Runs scoring stage placeholder and marks job as scored.
 - `analyze <job-id>`
@@ -23,7 +25,13 @@ PropSignal is CLI-first before Week 3. Commands are implemented in `backend/app/
 ## Example Sequence
 
 1. `./scripts/migrate.sh`
-2. `./scripts/cli-local.sh ingest backend/tests/fixtures/propflux/valid_listings.json`
+2. `./scripts/cli-local.sh ingest tests/fixtures/propflux/mixed_valid_invalid.json`
 3. `./scripts/cli-local.sh score 1`
 4. `./scripts/cli-local.sh analyze 1`
 5. `./scripts/cli-local.sh export 1 --format json`
+
+## Ingestion Outcomes
+
+- `completed`: all records valid and processed.
+- `completed_with_errors`: some records rejected but valid records were processed.
+- `failed`: payload-level failure (for example, non-array JSON root).

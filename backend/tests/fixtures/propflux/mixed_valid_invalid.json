@@ -1,0 +1,30 @@
+[
+  {
+    "title": "2 Bedroom Apartment in Cape Town",
+    "price": 1200000.0,
+    "location": " 123 main road , sea point ",
+    "bedrooms": 2,
+    "bathrooms": 1.5,
+    "property_type": "Flat",
+    "description": " Great apartment near promenade. ",
+    "listing_id": "LIST-1001",
+    "source_site": "privateproperty"
+  },
+  {
+    "price": 900000.0,
+    "location": "Missing title should fail",
+    "bedrooms": 2,
+    "bathrooms": 1.0,
+    "property_type": "Apartment",
+    "description": "Missing required title."
+  },
+  {
+    "title": "1 Bedroom Flat in Gardens",
+    "price": "invalid-number",
+    "location": "45 upper orange street",
+    "bedrooms": 1,
+    "bathrooms": 1.0,
+    "property_type": "Flat",
+    "description": "Invalid price type should fail."
+  }
+]

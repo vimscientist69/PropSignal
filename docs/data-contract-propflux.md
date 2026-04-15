@@ -54,7 +54,24 @@ The schema also supports common PropFlux metadata:
 
 - Unknown fields are rejected.
 - Per-record validation errors include array index context.
-- Ingestion fails fast when any listing violates schema.
+- Ingestion uses **partial-accept** mode:
+  - valid records are normalized and stored
+  - invalid records are persisted in rejected-record storage with deterministic errors
+- Non-array root payloads fail the job immediately.
+
+## Storage Model
+
+Ingestion persists data into three stores:
+
+- `raw_listings`: immutable source payloads per record
+- `listings`: canonical normalized records (deduplicated)
+- `rejected_listings`: invalid records with `error_code` and `error_detail`
+
+## Idempotency Rules
+
+- Preferred dedup key: `(source_site, listing_id)` when both values exist.
+- Fallback dedup key: normalized content hash (`source_hash`).
+- Re-ingesting the same listing updates canonical data instead of duplicating rows.
 
 ## Example
 

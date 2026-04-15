@@ -46,7 +46,21 @@ Default compose DB values:
 - CLI commands run from `backend/app/cli.py`.
 - Use `./scripts/cli-local.sh` for local execution.
 - Use `./scripts/cli-docker.sh` for containerized execution.
-- CLI ingestion currently enforces PropFlux JSON array contract.
+- CLI ingestion enforces PropFlux JSON array contract with partial-accept processing.
+- Job statuses: `created`, `processing`, `completed`, `completed_with_errors`, `failed`.
+
+## Ingestion Persistence Layout
+
+- `ingestion_jobs`: lifecycle and aggregate counters
+- `raw_listings`: immutable raw record snapshots
+- `listings`: normalized canonical records with dedup constraints
+- `rejected_listings`: invalid records and validation diagnostics
+
+## Dedup Configuration Behavior
+
+- Primary dedup key: `source_site + listing_id` (when present).
+- Fallback dedup key: computed `source_hash` from normalized payload.
+- Re-ingesting duplicate records updates canonical rows in `listings`.
 
 ## Scoring Configuration
 
