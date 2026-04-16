@@ -395,6 +395,8 @@ High-ROI additions (time-boxed, no indefinite expansion):
 - local comparables refinement (location/type/bedroom segmented medians)
 - rental-yield and transaction-cost adjustments
 - LLM feature extraction prototype (optional, gated)
+- configurable investor strategy modes (rental/resale/refurbishment/balanced) in dashboard + API
+- rich per-listing explanation payload for auditability and investor decision support
 
 Deferred unless core goals are already complete:
 - multi-provider external data integrations beyond one high-impact source
@@ -439,6 +441,10 @@ Ship an **ROI-first, explainable advanced scoring system** that improves ranking
 - **ROI proxy signals**
   - **Transaction-cost adjustment**
     - Upfront costs modeled as configurable % or fixed schedule (kept in config).
+    - Optional LLM-assisted extraction path:
+      - infer additional upfront-cost signals from listing fields + description text
+      - emit `upfront_cost_estimate`, `cost_drivers`, and `confidence`
+      - use only when confidence is above threshold, otherwise fallback to deterministic config assumptions
   - **Net yield proxy**
     - Use available fields (`rates_and_taxes`, `levies`) + configurable assumptions:
       - vacancy allowance %, maintenance %, management %, insurance (optional)
@@ -487,6 +493,7 @@ Ship an **ROI-first, explainable advanced scoring system** that improves ranking
   - condition/renovation level (e.g., “newly renovated”, “needs TLC”)
   - security/amenities not reliably structured (pool, inverter/solar, etc.)
   - rental hints (furnished, “investment”, “tenant in place”) as weak signals
+  - upfront-cost hints (legal/levy/special conditions) for ROI proxy refinement
 - **Integration approach (controlled):**
   - store derived fields in a separate enrichment payload (do not overwrite canonical listing fields)
   - feed enrichment into scoring only behind an **experiment flag**
@@ -518,20 +525,141 @@ Ship an **ROI-first, explainable advanced scoring system** that improves ranking
 
 ## **Week 3**
 
-- API development
-- dashboard UI
-- analytics visualizations
-- decision gate: enable LLM-derived signals by default only if Week 2 validation improves deal-quality metrics
+### **Goal**
+
+Turn PropSignal into a **configurable investor decision tool** where users can:
+- upload/select a dataset,
+- apply location + quality filters,
+- choose an investment strategy mode,
+- and receive ranked listings with detailed per-listing diagnostics.
+
+### **Deliverables (Week 3)**
+
+#### **3.1 Dashboard product functionality (strategy-driven ranking)**
+
+- Dataset handling:
+  - upload/select dataset source/s
+  - view job status and validation summary
+- Filter controls:
+  - change selected data source/s (allow more than one data source selected at once for merging, useful select all, unselect all data sources)
+  - province/city/suburb
+  - budget range
+  - property type / bed / bath
+  - confidence threshold
+- Strategy presets:
+  - rental income focus
+  - resale/arbitrage focus
+  - refurbishment/value-add focus
+  - balanced long-term hold
+- Preset behavior:
+  - each preset maps to weight profiles and signal toggles
+  - users can optionally fine-tune weights within safe bounds
+
+#### **3.2 Backend revamp to support strategy tool behavior**
+
+- API additions:
+  - endpoint(s) for ranking requests with filter + strategy payload
+  - endpoint(s) for listing detail diagnostics
+  - endpoint(s) for scoring profile definitions and defaults
+- Service-layer additions:
+  - query/filter pipeline for selected dataset segments
+  - scoring profile resolver (preset -> config)
+  - optional re-score on demand for filtered subset
+- Persistence additions:
+  - save ranking run metadata (dataset, filters, strategy, score version)
+  - save per-listing explanation payload for UI retrieval
+- Performance requirements:
+  - indexed query paths for core filters
+  - pagination and top-N optimized retrieval
+
+#### **3.3 CLI revamp to mirror backend/dashboard capability**
+
+- Add CLI command(s) for strategy-based ranking runs, for example:
+  - run ranking with dataset + filters + strategy preset
+  - export top-N detailed diagnostics
+- Add CLI support for profile inspection:
+  - list strategy profiles
+  - show resolved weights/signals for a selected profile
+- Keep CLI and API behavior aligned (same validation rules and scoring profile resolution).
+
+#### **3.4 Rich per-listing detail output (beyond reason strings)**
+
+- Keep concise `deal_reason` string for quick scan.
+- Add structured detail payload for each ranked listing:
+  - full signal breakdown (raw + normalized + weighted contribution)
+  - comps segment used and fallback path
+  - ROI assumptions used (rent estimate, costs, yield proxy components)
+  - risk/confidence flags
+  - model/profile/version metadata
+- Ensure this payload is available in:
+  - API listing detail response
+  - dashboard detail panel
+  - CLI detailed export
+
+#### **3.5 Decision gates and rollout**
+
+- decision gate: enable LLM-derived scoring signals by default only if Week 2 validation improves deal-quality metrics
 - optional: integrate one high-impact external data source only if it improves precision on top-ranked deals
+- keep deterministic fallback path as default if LLM enrichment confidence or quality is insufficient
 
 ---
 
 ## **Week 4**
 
-- testing
-- performance tuning
-- deployment
-- documentation
+### **Goal**
+
+Harden the system for real-world use by running structured validation on real datasets, tuning core engines based on evidence, and documenting repeatable feedback loops.
+
+### **Deliverables (Week 4)**
+
+#### **4.1 Real-dataset validation testing**
+
+- Run end-to-end validation on representative real datasets (including larger 10k+ samples when available).
+- Produce a validation report for each run with:
+  - ingestion quality (`valid/invalid`, rejection reasons, schema drift)
+  - scoring quality (distribution, top-N sanity, outlier behavior)
+  - explanation quality (reason clarity + signal consistency)
+  - analytics usefulness (can users understand and act on results)
+- Include manual audit slices:
+  - review top 20, middle 20, bottom 20 ranked listings
+  - verify that score drivers align with investor intuition and data reality.
+
+#### **4.2 Tuning and enhancement cycles**
+
+- Use validation findings to tune:
+  - scoring weights and signal formulas
+  - reasoning output format and detail quality
+  - analytics summaries and diagnostics
+- Define a controlled iteration protocol:
+  - change one tuning bundle at a time
+  - compare against previous baseline
+  - keep only changes with measurable uplift.
+
+#### **4.3 Business-problem fitness checks**
+
+- Verify that system output is genuinely useful for investor decisions:
+  - ranking quality by strategy mode (rental/resale/refurbishment/balanced)
+  - reduced false-positive “good deals” in top-N
+  - improved explainability and trust for end users.
+- Add acceptance gates for release:
+  - minimum quality thresholds per strategy profile
+  - no major regression in stability/consistency across reruns.
+
+#### **4.4 Performance tuning + deployment readiness**
+
+- Profile high-cost stages (ingestion, scoring, ranking APIs, dashboard queries).
+- Optimize bottlenecks (indexes, pagination paths, batch operations).
+- Complete deployment checklist (env config, observability, rollback path, smoke tests).
+
+#### **4.5 Documentation pack (operator + analyst guidance)**
+
+- Create practical docs for:
+  - how to run validation on a new real dataset
+  - how to interpret outputs and detect weak signals
+  - how to tune scoring/reasoning/analytics safely
+  - how to run iteration loops and record decisions
+  - how to decide go/no-go for enabling LLM-derived signals by default
+- Ensure docs include concrete command examples and expected artifacts.
 
 ---
 
@@ -571,9 +699,21 @@ Collect:
 - analytics clarity
 
 Iterate:
-- scoring weights
-- visualization quality
-- feature improvements
+- scoring formulas + weights (based on validation evidence, not intuition only)
+- reasoning payload clarity and usefulness
+- analytics report utility for investor workflows
+- strategy profile defaults and filter presets
+- LLM enrichment usage policy (enable/disable thresholds)
+
+### **Iteration cadence**
+
+- Run weekly validation cycle:
+  1. ingest and validate latest dataset
+  2. score with current profile versions
+  3. audit ranked outputs + explanations
+  4. tune one controlled change set
+  5. compare metrics and decide keep/revert
+- Log each cycle’s outcomes and decisions to prevent regressions and drift.
 
 ---
 

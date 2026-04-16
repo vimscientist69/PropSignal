@@ -127,7 +127,7 @@ Generate per-job summaries:
 Important details are often hidden in descriptions (condition, upgrades, amenities, rental clues).
 
 ### How it works
-- Use LLM to extract a small set of high-value features from description text.
+- Use LLM to extract a small set of pre-set high-value features from description text.
 - Store enrichment in a separate payload.
 - Only influence scoring behind an experiment flag until validated.
 
