@@ -22,8 +22,8 @@ class PropfluxListing(BaseModel):
     title: str
     price: float
     location: str
-    bedrooms: int
-    bathrooms: float
+    bedrooms: int | None
+    bathrooms: float | None
     property_type: str
     description: str
 
@@ -44,6 +44,12 @@ class PropfluxListing(BaseModel):
     backup_power: bool | None = None
     security: bool | None = None
     pets_allowed: bool | None = None
+    pool: bool | None = None
+    garden: bool | None = None
+    electric_fencing: bool | None = None
+    laundry: bool | None = None
+    alarm: bool | None = None
+    study: bool | None = None
 
     # Common metadata fields from PropFlux-style payloads
     listing_url: str | None = None

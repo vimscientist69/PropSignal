@@ -35,3 +35,29 @@ def test_partial_validation_mixed_payload() -> None:
     assert len(valid) == 1
     assert len(invalid) == 2
     assert invalid[0].record_index == 1
+
+
+def test_partial_validation_allows_known_propflux_optional_fields() -> None:
+    payload = [
+        {
+            "title": "785 m² Land available in Le Grand Estate",
+            "price": 1095000.0,
+            "location": "88 le grand estate",
+            "bedrooms": None,
+            "bathrooms": None,
+            "property_type": "Residential Land",
+            "description": "Vacant stand with views",
+            "listing_id": "T5421072",
+            "source_site": "privateproperty",
+            "pool": True,
+            "garden": True,
+            "electric_fencing": False,
+            "laundry": False,
+            "alarm": True,
+            "study": False,
+        }
+    ]
+    valid, invalid = validate_propflux_payload_partial(payload)
+
+    assert len(valid) == 1
+    assert len(invalid) == 0

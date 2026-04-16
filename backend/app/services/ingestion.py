@@ -72,8 +72,9 @@ def _upsert_normalized_listing(
         "title": payload["title"],
         "price": float(payload["price"]),
         "location": payload["location"],
-        "bedrooms": int(payload["bedrooms"]),
-        "bathrooms": float(payload["bathrooms"]),
+        # Some valid PropFlux categories (e.g. land) omit bed/bath counts.
+        "bedrooms": int(payload["bedrooms"] or 0),
+        "bathrooms": float(payload["bathrooms"] or 0.0),
         "property_type": payload["property_type"],
         "description": payload["description"],
         "agent_name": payload.get("agent_name"),
