@@ -4,6 +4,7 @@ import typer
 
 from app.db.session import SessionLocal
 from app.services.analytics import run_analytics_job
+from app.services.dataset_validation import run_dataset_validation
 from app.services.exporting import export_job_results
 from app.services.ingestion import ingest_propflux_file
 from app.services.scoring import run_scoring_job
@@ -46,6 +47,17 @@ def export(job_id: int, format: str = typer.Option("json", "--format")) -> None:
     with SessionLocal() as db:
         output_path = export_job_results(db, job_id, format)
     typer.echo(f"Export written to: {output_path}")
+
+
+@app.command("validate-dataset")
+def validate_dataset(job_id: int) -> None:
+    with SessionLocal() as db:
+        result = run_dataset_validation(db, job_id)
+    typer.echo(
+        f"Dataset validation completed for job: {result.job_id}, status={result.status}, "
+        f"valid_rate={result.valid_rate}, invalid_rate={result.invalid_rate}"
+    )
+    typer.echo(f"Report written to: {result.report_path}")
 
 
 if __name__ == "__main__":

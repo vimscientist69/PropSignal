@@ -17,6 +17,9 @@ PropSignal is CLI-first before Week 3. Commands are implemented in `backend/app/
   - Prints job summary: status, total/valid/invalid counts.
 - `score <job-id>`
   - Runs scoring stage placeholder and marks job as scored.
+- `validate-dataset <job-id>`
+  - Computes dataset-level quality checks and threshold gates.
+  - Persists validation summary and writes `output/job_<id>_validation.json`.
 - `analyze <job-id>`
   - Runs analytics stage placeholder and marks job as analyzed.
 - `export <job-id> --format json|csv`
@@ -27,8 +30,9 @@ PropSignal is CLI-first before Week 3. Commands are implemented in `backend/app/
 1. `./scripts/migrate.sh`
 2. `./scripts/cli-local.sh ingest tests/fixtures/propflux/mixed_valid_invalid.json`
 3. `./scripts/cli-local.sh score 1`
-4. `./scripts/cli-local.sh analyze 1`
-5. `./scripts/cli-local.sh export 1 --format json`
+4. `./scripts/cli-local.sh validate-dataset 1`
+5. `./scripts/cli-local.sh analyze 1`
+6. `./scripts/cli-local.sh export 1 --format json`
 
 ## Ingestion Outcomes
 

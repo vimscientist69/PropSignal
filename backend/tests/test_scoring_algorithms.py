@@ -1,20 +1,12 @@
 from datetime import UTC, date, datetime, timedelta
 
 import pytest
-from app.db.base import Base
 from app.models.ingestion_job import IngestionJob
 from app.models.listing import Listing
 from app.models.score_result import ScoreResult
 from app.services import scoring
-from sqlalchemy import create_engine, func, select
-from sqlalchemy.orm import Session, sessionmaker
-
-
-def _make_db_session() -> Session:
-    engine = create_engine("sqlite+pysqlite:///:memory:")
-    Base.metadata.create_all(engine)
-    session_local = sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=Session)
-    return session_local()
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
 
 
 def _build_listing(job_id: int, source_hash: str, **overrides: object) -> Listing:
@@ -107,77 +99,75 @@ def test_deal_reason_fallback_and_reason_order() -> None:
     assert "Feature density supports value" not in reason
 
 
-def test_run_scoring_job_raises_for_missing_job() -> None:
-    with _make_db_session() as db:
-        with pytest.raises(ValueError, match="Ingestion job not found"):
-            scoring.run_scoring_job(db, 999)
+def test_run_scoring_job_raises_for_missing_job(db_session: Session) -> None:
+    with pytest.raises(ValueError, match="Ingestion job not found"):
+        scoring.run_scoring_job(db_session, 999)
 
 
-def test_run_scoring_job_raises_when_job_has_no_listings() -> None:
-    with _make_db_session() as db:
-        job = IngestionJob(input_path="dummy.json", status="processing")
-        db.add(job)
-        db.commit()
-        db.refresh(job)
+def test_run_scoring_job_raises_when_job_has_no_listings(db_session: Session) -> None:
+    job = IngestionJob(input_path="dummy.json", status="processing")
+    db_session.add(job)
+    db_session.commit()
+    db_session.refresh(job)
 
-        with pytest.raises(ValueError, match="No listings found"):
-            scoring.run_scoring_job(db, job.id)
-
-
-def test_run_scoring_job_writes_result_per_listing_and_idempotent() -> None:
-    with _make_db_session() as db:
-        job = IngestionJob(input_path="dummy.json", status="processing")
-        db.add(job)
-        db.flush()
-
-        listing_a = _build_listing(job.id, "hash-a", listing_id="A-1", price=900_000.0)
-        listing_b = _build_listing(job.id, "hash-b", listing_id="B-1", price=1_200_000.0)
-        db.add_all([listing_a, listing_b])
-        db.commit()
-
-        scoring.run_scoring_job(db, job.id)
-        scoring.run_scoring_job(db, job.id)
-
-        count = db.scalar(
-            select(func.count()).select_from(ScoreResult).where(ScoreResult.job_id == job.id)
-        )
-        assert count == 2
-
-        results = db.scalars(select(ScoreResult).where(ScoreResult.job_id == job.id)).all()
-        assert all(0.0 <= row.score <= 100.0 for row in results)
-        assert all(0.0 <= row.confidence <= 1.0 for row in results)
-        assert all(row.model_version == "baseline_v1" for row in results)
+    with pytest.raises(ValueError, match="No listings found"):
+        scoring.run_scoring_job(db_session, job.id)
 
 
-def test_run_scoring_job_applies_config_weights(monkeypatch: pytest.MonkeyPatch) -> None:
-    with _make_db_session() as db:
-        job = IngestionJob(input_path="dummy.json", status="processing")
-        db.add(job)
-        db.flush()
-        db.add(_build_listing(job.id, "hash-weight", listing_id="W-1"))
-        db.commit()
+def test_run_scoring_job_writes_result_per_listing_and_idempotent(db_session: Session) -> None:
+    job = IngestionJob(input_path="dummy.json", status="processing")
+    db_session.add(job)
+    db_session.flush()
 
-        monkeypatch.setattr(
-            scoring,
-            "_load_scoring_config",
-            lambda: {
-                "weights": {
-                    "price_deviation": 1.0,
-                    "feature_value": 0.0,
-                    "time_on_market": 0.0,
-                    "liquidity": 0.0,
-                    "confidence": 0.0,
-                },
-                "rules": {"stale_inventory_days": 90},
+    listing_a = _build_listing(job.id, "hash-a", listing_id="A-1", price=900_000.0)
+    listing_b = _build_listing(job.id, "hash-b", listing_id="B-1", price=1_200_000.0)
+    db_session.add_all([listing_a, listing_b])
+    db_session.commit()
+
+    scoring.run_scoring_job(db_session, job.id)
+    scoring.run_scoring_job(db_session, job.id)
+
+    count = db_session.scalar(
+        select(func.count()).select_from(ScoreResult).where(ScoreResult.job_id == job.id)
+    )
+    assert count == 2
+
+    results = db_session.scalars(select(ScoreResult).where(ScoreResult.job_id == job.id)).all()
+    assert all(0.0 <= row.score <= 100.0 for row in results)
+    assert all(0.0 <= row.confidence <= 1.0 for row in results)
+    assert all(row.model_version == "baseline_v1" for row in results)
+
+
+def test_run_scoring_job_applies_config_weights(
+    db_session: Session, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    job = IngestionJob(input_path="dummy.json", status="processing")
+    db_session.add(job)
+    db_session.flush()
+    db_session.add(_build_listing(job.id, "hash-weight", listing_id="W-1"))
+    db_session.commit()
+
+    monkeypatch.setattr(
+        scoring,
+        "_load_scoring_config",
+        lambda: {
+            "weights": {
+                "price_deviation": 1.0,
+                "feature_value": 0.0,
+                "time_on_market": 0.0,
+                "liquidity": 0.0,
+                "confidence": 0.0,
             },
-        )
-        monkeypatch.setattr(scoring, "_price_deviation_signal", lambda *_: 0.9)
-        monkeypatch.setattr(scoring, "_size_value_signal", lambda *_: 0.1)
-        monkeypatch.setattr(scoring, "_time_on_market_signal", lambda *_: 0.1)
-        monkeypatch.setattr(scoring, "_feature_density_signal", lambda *_: 0.1)
-        monkeypatch.setattr(scoring, "_confidence_signal", lambda *_: 0.1)
+            "rules": {"stale_inventory_days": 90},
+        },
+    )
+    monkeypatch.setattr(scoring, "_price_deviation_signal", lambda *_: 0.9)
+    monkeypatch.setattr(scoring, "_size_value_signal", lambda *_: 0.1)
+    monkeypatch.setattr(scoring, "_time_on_market_signal", lambda *_: 0.1)
+    monkeypatch.setattr(scoring, "_feature_density_signal", lambda *_: 0.1)
+    monkeypatch.setattr(scoring, "_confidence_signal", lambda *_: 0.1)
 
-        scoring.run_scoring_job(db, job.id)
-        row = db.scalar(select(ScoreResult).where(ScoreResult.job_id == job.id))
-        assert row is not None
-        assert row.score == 90.0
+    scoring.run_scoring_job(db_session, job.id)
+    row = db_session.scalar(select(ScoreResult).where(ScoreResult.job_id == job.id))
+    assert row is not None
+    assert row.score == 90.0

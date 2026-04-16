@@ -21,6 +21,7 @@ def test_cli_help_includes_preweek1_commands() -> None:
     assert "score" in result.stdout
     assert "analyze" in result.stdout
     assert "export" in result.stdout
+    assert "validate-dataset" in result.stdout
 
 
 def test_cli_ingest_uses_ingestion_service(monkeypatch) -> None:
@@ -51,3 +52,25 @@ def test_cli_export_rejects_unsupported_format() -> None:
     runner = CliRunner()
     result = runner.invoke(app, ["export", "1", "--format", "xml"])
     assert result.exit_code == 2
+
+
+def test_cli_validate_dataset_uses_validation_service(monkeypatch) -> None:
+    runner = CliRunner()
+
+    def fake_run_dataset_validation(db, job_id: int):
+        assert job_id == 5
+        return SimpleNamespace(
+            job_id=5,
+            status="warn",
+            valid_rate=0.82,
+            invalid_rate=0.18,
+            report_path="output/job_5_validation.json",
+        )
+
+    monkeypatch.setattr("app.cli.SessionLocal", DummySession)
+    monkeypatch.setattr("app.cli.run_dataset_validation", fake_run_dataset_validation)
+
+    result = runner.invoke(app, ["validate-dataset", "5"])
+    assert result.exit_code == 0
+    assert "status=warn" in result.stdout
+    assert "job_5_validation.json" in result.stdout
