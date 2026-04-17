@@ -12,9 +12,21 @@ This project focuses on:
 
 ---
 
-TODO Prompts:
+## 📚 How to Use This Document
 
-- [ ] something that is not thought about so far is performance; a lot of calculations will be made, especially on larger and larger datasets.
+- This file is the **master roadmap and execution reference**.
+- Detailed companion docs:
+  - Week 2 concept explanations: `docs/week2-advanced-scoring-explained.md`
+  - Evaluation protocol and promote/revert gates: `docs/evaluation-review-protocol.md`
+  - Principal audit findings and gaps: `docs/project-note-principal-audit.md`
+  - MVP performance strategy: `docs/mvp-performance-plan.md`
+  - Current status and kickoff checklist: `docs/current-project-status.md`
+- If any guidance conflicts, use this precedence:
+  1. implementation safety and data integrity
+  2. investor decision usefulness
+  3. delivery scope control (finish in <1 month)
+
+---
 
 
 # 🧩 Product Vision
@@ -50,8 +62,6 @@ Each deal is:
 ---
 
 ## Full Metadata Support
-
-continue here
 
 - price  
 - location (city, suburb, region)  
@@ -395,6 +405,7 @@ Must-have before release:
 - baseline + advanced scoring that is explainable
 - analytics + API + usable dashboard
 - deployment + validation on 10k+ listings
+- MVP performance standards for 10k+ datasets and multi-dataset ranking selection
 
 High-ROI additions (time-boxed, no indefinite expansion):
 - local comparables refinement (location/type/bedroom segmented medians)
@@ -576,6 +587,8 @@ Turn PropSignal into a **configurable investor decision tool** where users can:
 - Performance requirements:
   - indexed query paths for core filters
   - pagination and top-N optimized retrieval
+  - asynchronous processing for heavy jobs (ingestion/scoring/validation)
+  - freshness metadata (`last_ingested_at`, `last_scored_at`, `model/profile version`)
 
 #### **3.3 CLI revamp to mirror backend/dashboard capability**
 
@@ -655,6 +668,7 @@ Harden the system for real-world use by running structured validation on real da
 - Profile high-cost stages (ingestion, scoring, ranking APIs, dashboard queries).
 - Optimize bottlenecks (indexes, pagination paths, batch operations).
 - Complete deployment checklist (env config, observability, rollback path, smoke tests).
+- Use `docs/mvp-performance-plan.md` as the implementation checklist and SLO reference.
 
 #### **4.5 Documentation pack (operator + analyst guidance)**
 

@@ -3,6 +3,14 @@
 PropSignal is a real estate deal intelligence platform. Pre-Week-1 delivery is CLI-first with Docker
 Compose orchestration, PostgreSQL persistence, and a strict PropFlux JSON ingestion contract.
 
+## Project Status (Single-Page Snapshot)
+
+- Week 1 foundation is complete: ingestion/normalization, baseline scoring, and dataset validation.
+- Week 2/3/4 are documented and ready for implementation on a new feature branch.
+- Current next step: implement Week 2 advanced scoring engine and reasoning payloads.
+
+Detailed status and next-branch checklist: `docs/current-project-status.md`
+
 ## Current Scope Guardrails
 
 - Pre-Week-1 and Week 1 focus on CLI ingestion, data normalization, scoring, and persistence.
@@ -73,6 +81,7 @@ Core commands:
 
 - `ingest <path>`
 - `score <job-id>`
+- `validate-dataset <job-id>`
 - `analyze <job-id>`
 - `export <job-id> --format json|csv`
 
@@ -91,3 +100,22 @@ GitHub Actions workflow runs:
 
 - backend lint, type checks, migrations, and tests
 - frontend lint, type checks, and build checks
+
+## Documentation Map
+
+- Project roadmap and execution plan:
+  - `/.cursor/rules/PROJECT_NOTE.md`
+- Week 2 explanation (simple language):
+  - `docs/week2-advanced-scoring-explained.md`
+- Evaluation and promotion/revert protocol:
+  - `docs/evaluation-review-protocol.md`
+- Principal audit findings and must-fix checklist:
+  - `docs/project-note-principal-audit.md`
+- MVP performance plan (including multi-dataset selection):
+  - `docs/mvp-performance-plan.md`
+- Immediate next feature-branch execution order:
+  - `docs/next-phase-execution-plan.md`
+- Current status and next phase kickoff checklist:
+  - `docs/current-project-status.md`
+- Documentation ownership/index:
+  - `docs/README.md`
