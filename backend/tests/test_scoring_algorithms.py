@@ -1,4 +1,5 @@
 from datetime import UTC, date, datetime, timedelta
+from pathlib import Path
 
 import pytest
 from app.models.ingestion_job import IngestionJob
@@ -41,6 +42,62 @@ def test_clamp_and_days_on_market_edge_cases() -> None:
     assert scoring._days_on_market(None) is None
     future_date = datetime.now(UTC).date() + timedelta(days=10)
     assert scoring._days_on_market(future_date) == 0
+
+
+def test_load_scoring_config_returns_defaults_without_config_file(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    config = scoring._load_scoring_config()
+
+    assert config["weights"]["price_deviation"] == 0.35
+    assert config["rules"]["stale_inventory_days"] == 90
+    assert config["advanced_v2"]["comps"]["fallback_order"] == [
+        "suburb",
+        "city",
+        "province",
+        "global",
+    ]
+    assert config["evaluation_thresholds"]["top20_jaccard_min"] == 0.7
+
+
+def test_load_scoring_config_deep_merges_advanced_v2_and_threshold_overrides(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    config_dir = tmp_path / "config"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    (config_dir / "scoring.yaml").write_text(
+        "\n".join(
+            [
+                "weights:",
+                "  confidence: 0.15",
+                "advanced_v2:",
+                "  comps:",
+                "    minimum_cohort_size: 20",
+                "  roi:",
+                "    transaction_cost_pct: 0.1",
+                "evaluation_thresholds:",
+                "  rank_correlation_min: 0.85",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    config = scoring._load_scoring_config()
+    assert config["weights"]["confidence"] == 0.15
+    assert config["weights"]["price_deviation"] == 0.35
+    assert config["advanced_v2"]["comps"]["minimum_cohort_size"] == 20
+    assert config["advanced_v2"]["comps"]["fallback_order"] == [
+        "suburb",
+        "city",
+        "province",
+        "global",
+    ]
+    assert config["advanced_v2"]["roi"]["transaction_cost_pct"] == 0.1
+    assert config["advanced_v2"]["roi"]["maintenance_pct"] == 0.04
+    assert config["evaluation_thresholds"]["rank_correlation_min"] == 0.85
+    assert config["evaluation_thresholds"]["top20_jaccard_min"] == 0.7
 
 
 def test_signal_neutral_defaults_when_inputs_missing() -> None:

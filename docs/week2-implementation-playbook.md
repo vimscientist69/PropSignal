@@ -151,6 +151,7 @@ Only promote scoring changes when quality and stability pass explicit thresholds
 2. Freeze interface expectations:
    - `advanced_v2` output schema
    - explanation payload schema
+   - capture and lock in `docs/week2-interface-contract.md`
 3. Confirm promotion thresholds from:
    - `docs/evaluation-review-protocol.md`.
 

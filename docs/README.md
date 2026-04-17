@@ -16,6 +16,8 @@ This directory is organized so you can quickly find:
   - `docs/week2-advanced-scoring-explained.md`
 - Consolidated Week 2 implementation playbook (explanation + code map + order):
   - `docs/week2-implementation-playbook.md`
+- Week 2 scoring/reasoning interface contract:
+  - `docs/week2-interface-contract.md`
 - Evaluation protocol (manual/automated/LLM-assisted review):
   - `docs/evaluation-review-protocol.md`
 - Principal audit findings and must-fix list:

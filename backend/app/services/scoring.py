@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from copy import deepcopy
 from datetime import UTC, date, datetime
 from pathlib import Path
 from statistics import median
@@ -23,12 +24,58 @@ DEFAULT_SCORING_CONFIG: dict[str, Any] = {
     },
     "rules": {
         "stale_inventory_days": 90,
+        "minimum_confidence": 0.6,
+        "outlier_zscore_threshold": 2.5,
+    },
+    "flags": {
+        "enable_liquidity_signal": True,
+        "enable_feature_signal": True,
+        "enable_explanation_payload": True,
+        "enable_advanced_v2_roi_proxy": False,
+        "enable_advanced_v2_micro_comps": False,
+    },
+    "advanced_v2": {
+        "comps": {
+            "minimum_cohort_size": 12,
+            "fallback_order": ["suburb", "city", "province", "global"],
+            "include_bedrooms": True,
+            "include_bathrooms": True,
+        },
+        "roi": {
+            # Heuristic defaults for MVP; calibrate per market/dataset later.
+            "transaction_cost_pct": 0.08,
+            "vacancy_allowance_pct": 0.05,
+            "maintenance_pct": 0.04,
+            "management_pct": 0.08,
+            "insurance_pct": 0.01,
+        },
+    },
+    "evaluation_thresholds": {
+        "top20_jaccard_min": 0.7,
+        "rank_correlation_min": 0.8,
     },
 }
 
 
 def _clamp(value: float, min_value: float = 0.0, max_value: float = 1.0) -> float:
     return max(min_value, min(max_value, value))
+
+
+def _deep_merge_dict(defaults: dict[str, Any], overrides: dict[str, Any]) -> dict[str, Any]:
+    merged: dict[str, Any] = {}
+    for key, default_value in defaults.items():
+        override_value = overrides.get(key)
+        if isinstance(default_value, dict) and isinstance(override_value, dict):
+            merged[key] = _deep_merge_dict(default_value, override_value)
+        elif key in overrides:
+            merged[key] = override_value
+        else:
+            merged[key] = default_value
+
+    for key, override_value in overrides.items():
+        if key not in merged:
+            merged[key] = override_value
+    return merged
 
 
 def _load_scoring_config() -> dict[str, Any]:
@@ -39,11 +86,8 @@ def _load_scoring_config() -> dict[str, Any]:
     for path in candidate_paths:
         if path.exists():
             loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-            return {
-                "weights": {**DEFAULT_SCORING_CONFIG["weights"], **loaded.get("weights", {})},
-                "rules": {**DEFAULT_SCORING_CONFIG["rules"], **loaded.get("rules", {})},
-            }
-    return DEFAULT_SCORING_CONFIG
+            return _deep_merge_dict(DEFAULT_SCORING_CONFIG, loaded)
+    return deepcopy(DEFAULT_SCORING_CONFIG)
 
 
 def _days_on_market(date_posted: date | None) -> int | None:
