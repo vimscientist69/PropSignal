@@ -48,7 +48,7 @@ jobs:
         run: black --check .
 
       - name: Type check
-        run: mypy app
+        run: mypy --install-types --non-interactive app
 
       - name: Run migrations
         run: alembic upgrade head
