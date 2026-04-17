@@ -2,7 +2,7 @@
 
 This is the practical execution sequence for the next feature branch, optimized for speed and low risk.
 
-## Scope for This Branch
+## Scope for This Branch:
 
 Implement Week 2 core only:
 - advanced scoring (`advanced_v2`)
