@@ -128,6 +128,7 @@ Identify everything missing, unclear, risky, or misaligned that could reduce:
 1. **“Real-time updates per dataset” is ambiguous for a batch-heavy pipeline**
 - **Impact:** Product expectation mismatch.
 - **Recommendation:** Define update cadence and freshness semantics.
+TIP: update when manually triggered in ui, but make it robust and optimised for performance.
 
 2. **Reasoning quality lacks explicit QA rubric**
 - **Impact:** Explanations may be verbose but not decision-useful.
@@ -144,6 +145,7 @@ Identify everything missing, unclear, risky, or misaligned that could reduce:
 5. **PDF export appears in output goals without explicit implementation plan**
 - **Impact:** Hidden scope creep.
 - **Recommendation:** Either defer PDF for MVP or define generation pipeline and quality criteria.
+TIP: defer PDF for MVP
 
 ### Low
 

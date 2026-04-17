@@ -12,6 +12,11 @@ This project focuses on:
 
 ---
 
+TODO Prompts:
+
+- [ ] something that is not thought about so far is performance; a lot of calculations will be made, especially on larger and larger datasets.
+
+
 # 🧩 Product Vision
 
 ## Core Idea
