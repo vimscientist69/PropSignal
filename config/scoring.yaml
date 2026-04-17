@@ -21,6 +21,13 @@ flags:
 
 # Week 2 advanced scoring contract (Phase 1 config skeleton).
 advanced_v2:
+  weights:
+    price_vs_comp: 0.3
+    size_vs_comp: 0.18
+    time_on_market: 0.14
+    feature_value: 0.1
+    confidence: 0.08
+    roi_proxy: 0.2
   comps:
     minimum_cohort_size: 12
     fallback_order:

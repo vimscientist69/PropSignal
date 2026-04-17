@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from copy import deepcopy
 from datetime import UTC, date, datetime
 from pathlib import Path
@@ -35,6 +36,14 @@ DEFAULT_SCORING_CONFIG: dict[str, Any] = {
         "enable_advanced_v2_micro_comps": False,
     },
     "advanced_v2": {
+        "weights": {
+            "price_vs_comp": 0.3,
+            "size_vs_comp": 0.18,
+            "time_on_market": 0.14,
+            "feature_value": 0.1,
+            "confidence": 0.08,
+            "roi_proxy": 0.2,
+        },
         "comps": {
             "minimum_cohort_size": 12,
             "fallback_order": ["suburb", "city", "province", "global"],
@@ -145,6 +154,123 @@ def _price_deviation_signal(listing: Listing, median_price: float) -> float:
     return round(_clamp(0.5 + deviation), 4)
 
 
+def _normalize_location(value: str | None) -> str:
+    return (value or "").strip().lower()
+
+
+def _bath_bucket(value: float | None) -> int:
+    return int(round(value or 0.0))
+
+
+def _comp_key_for_level(
+    listing: Listing,
+    level: str,
+    include_bedrooms: bool,
+    include_bathrooms: bool,
+) -> tuple[Any, ...]:
+    base: list[Any] = []
+    if level == "suburb":
+        base.extend(
+            [
+                _normalize_location(listing.province),
+                _normalize_location(listing.city),
+                _normalize_location(listing.suburb),
+            ]
+        )
+    elif level == "city":
+        base.extend([_normalize_location(listing.province), _normalize_location(listing.city)])
+    elif level == "province":
+        base.append(_normalize_location(listing.province))
+    elif level == "global":
+        base.append("global")
+    else:
+        base.append(level)
+
+    base.append((listing.property_type or "").strip().lower())
+    if include_bedrooms:
+        base.append(int(listing.bedrooms or 0))
+    if include_bathrooms:
+        base.append(_bath_bucket(listing.bathrooms))
+    return tuple(base)
+
+
+def _build_comp_index(
+    listings: Sequence[Listing],
+    fallback_order: list[str],
+    include_bedrooms: bool,
+    include_bathrooms: bool,
+) -> dict[str, dict[tuple[Any, ...], list[Listing]]]:
+    index: dict[str, dict[tuple[Any, ...], list[Listing]]] = {level: {} for level in fallback_order}
+    for listing in listings:
+        for level in fallback_order:
+            key = _comp_key_for_level(listing, level, include_bedrooms, include_bathrooms)
+            index[level].setdefault(key, []).append(listing)
+    return index
+
+
+def _fallback_penalty(level: str) -> float:
+    penalties = {"suburb": 0.0, "city": 0.03, "province": 0.06, "global": 0.1}
+    return penalties.get(level, 0.1)
+
+
+def _resolve_comp_context(
+    listing: Listing,
+    comp_index: dict[str, dict[tuple[Any, ...], list[Listing]]],
+    fallback_order: list[str],
+    minimum_cohort_size: int,
+    include_bedrooms: bool,
+    include_bathrooms: bool,
+) -> tuple[str | None, list[Listing], float]:
+    for level in fallback_order:
+        key = _comp_key_for_level(listing, level, include_bedrooms, include_bathrooms)
+        cohort = comp_index.get(level, {}).get(key, [])
+        # Anti-leakage safeguard: do not include the listing itself in its comp cohort.
+        comparable = [row for row in cohort if row.id != listing.id]
+        if len(comparable) >= minimum_cohort_size:
+            return level, comparable, _fallback_penalty(level)
+
+    return None, [], 0.0
+
+
+def _gross_yield_assumption(property_type: str | None) -> float:
+    normalized = (property_type or "").strip().lower()
+    if "apartment" in normalized or "flat" in normalized:
+        return 0.09
+    if "townhouse" in normalized or "duplex" in normalized:
+        return 0.082
+    if "vacant" in normalized or "land" in normalized:
+        return 0.0
+    return 0.075
+
+
+def _roi_proxy_signal(listing: Listing, roi_config: dict[str, Any]) -> float:
+    if listing.price is None or listing.price <= 0:
+        return 0.5
+
+    transaction_cost_pct = float(roi_config.get("transaction_cost_pct", 0.08))
+    vacancy_allowance_pct = float(roi_config.get("vacancy_allowance_pct", 0.05))
+    maintenance_pct = float(roi_config.get("maintenance_pct", 0.04))
+    management_pct = float(roi_config.get("management_pct", 0.08))
+    insurance_pct = float(roi_config.get("insurance_pct", 0.01))
+
+    effective_purchase_price = listing.price * (1.0 + transaction_cost_pct)
+    annual_rent = listing.price * _gross_yield_assumption(listing.property_type)
+
+    fixed_monthly_costs = float(listing.rates_and_taxes or 0.0) + float(listing.levies or 0.0)
+    annual_fixed_costs = fixed_monthly_costs * 12.0
+    annual_variable_costs = annual_rent * (vacancy_allowance_pct + management_pct)
+    annual_asset_costs = effective_purchase_price * (maintenance_pct + insurance_pct)
+    annual_costs = annual_fixed_costs + annual_variable_costs + annual_asset_costs
+
+    if effective_purchase_price > 0:
+        net_yield = (annual_rent - annual_costs) / effective_purchase_price
+    else:
+        net_yield = 0.0
+    # Normalize around practical residential ranges; 6% net yield ~= neutral 0.5.
+    normalized = 0.5 + (net_yield - 0.06) / 0.12
+    return round(_clamp(normalized), 4)
+
+
 def _deal_reason(
     price_signal: float,
     size_signal: float,
@@ -183,6 +309,27 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
     config = _load_scoring_config()
     weights = config["weights"]
     stale_inventory_days = int(config["rules"]["stale_inventory_days"])
+    flags = config.get("flags", {})
+    advanced_v2_enabled = bool(
+        flags.get("enable_advanced_v2_micro_comps") or flags.get("enable_advanced_v2_roi_proxy")
+    )
+    advanced_v2_cfg = config.get("advanced_v2", {})
+    advanced_weights = advanced_v2_cfg.get("weights", {})
+
+    fallback_order = list(
+        advanced_v2_cfg.get("comps", {}).get(
+            "fallback_order", ["suburb", "city", "province", "global"]
+        )
+    )
+    include_bedrooms = bool(advanced_v2_cfg.get("comps", {}).get("include_bedrooms", True))
+    include_bathrooms = bool(advanced_v2_cfg.get("comps", {}).get("include_bathrooms", True))
+    minimum_cohort_size = int(advanced_v2_cfg.get("comps", {}).get("minimum_cohort_size", 12))
+    roi_config = advanced_v2_cfg.get("roi", {})
+    comp_index = (
+        _build_comp_index(listings, fallback_order, include_bedrooms, include_bathrooms)
+        if advanced_v2_enabled
+        else {}
+    )
 
     prices = [listing.price for listing in listings if listing.price is not None]
     price_per_sqm_values = [
@@ -196,19 +343,63 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
     db.execute(delete(ScoreResult).where(ScoreResult.job_id == job_id))
 
     for listing in listings:
-        price_signal = _price_deviation_signal(listing, median_price)
-        size_signal = _size_value_signal(listing, median_price_per_sqm)
+        if advanced_v2_enabled:
+            _level, comparable, penalty = _resolve_comp_context(
+                listing=listing,
+                comp_index=comp_index,
+                fallback_order=fallback_order,
+                minimum_cohort_size=minimum_cohort_size,
+                include_bedrooms=include_bedrooms,
+                include_bathrooms=include_bathrooms,
+            )
+            if comparable:
+                comp_prices = [row.price for row in comparable if row.price is not None]
+                comp_ppsqm = [
+                    row.price / row.floor_size
+                    for row in comparable
+                    if row.floor_size is not None and row.floor_size > 0 and row.price is not None
+                ]
+                comp_median_price = float(median(comp_prices)) if comp_prices else 0.0
+                comp_median_ppsqm = float(median(comp_ppsqm)) if comp_ppsqm else 0.0
+                price_signal = round(
+                    _clamp(_price_deviation_signal(listing, comp_median_price) - penalty), 4
+                )
+                size_signal = round(
+                    _clamp(_size_value_signal(listing, comp_median_ppsqm) - penalty), 4
+                )
+            else:
+                price_signal = 0.5
+                size_signal = 0.5
+        else:
+            price_signal = _price_deviation_signal(listing, median_price)
+            size_signal = _size_value_signal(listing, median_price_per_sqm)
+
         time_signal = _time_on_market_signal(listing, stale_inventory_days)
         feature_signal = _feature_density_signal(listing)
         confidence = _confidence_signal(listing)
-
-        weighted = (
-            weights["price_deviation"] * price_signal
-            + weights["feature_value"] * size_signal
-            + weights["time_on_market"] * time_signal
-            + weights["liquidity"] * feature_signal
-            + weights["confidence"] * confidence
+        roi_signal = (
+            _roi_proxy_signal(listing, roi_config)
+            if flags.get("enable_advanced_v2_roi_proxy")
+            else 0.5
         )
+
+        if advanced_v2_enabled:
+            weighted = (
+                float(advanced_weights.get("price_vs_comp", 0.3)) * price_signal
+                + float(advanced_weights.get("size_vs_comp", 0.18)) * size_signal
+                + float(advanced_weights.get("time_on_market", 0.14)) * time_signal
+                + float(advanced_weights.get("feature_value", 0.1)) * feature_signal
+                + float(advanced_weights.get("confidence", 0.08)) * confidence
+                + float(advanced_weights.get("roi_proxy", 0.2)) * roi_signal
+            )
+        else:
+            weighted = (
+                weights["price_deviation"] * price_signal
+                + weights["feature_value"] * size_signal
+                + weights["time_on_market"] * time_signal
+                + weights["liquidity"] * feature_signal
+                + weights["confidence"] * confidence
+            )
         score = round(_clamp(weighted) * 100.0, 2)
 
         db.add(
@@ -224,7 +415,7 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
                     feature_signal=feature_signal,
                     confidence_signal=confidence,
                 ),
-                model_version="baseline_v1",
+                model_version="advanced_v2" if advanced_v2_enabled else "baseline_v1",
             )
         )
 
