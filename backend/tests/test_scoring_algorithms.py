@@ -362,3 +362,11 @@ def test_run_scoring_job_uses_advanced_v2_when_flags_enabled(
     rows = db_session.scalars(select(ScoreResult).where(ScoreResult.job_id == job.id)).all()
     assert len(rows) == 3
     assert all(row.model_version == "advanced_v2" for row in rows)
+    for row in rows:
+        assert row.explanation is not None
+        assert row.explanation["summary"]["primary_driver"] != ""
+        assert row.explanation["score_math"]["final_score_0_to_100"] == row.score
+        weighted_sum = sum(
+            float(signal["weighted_contribution"]) for signal in row.explanation["signals"]
+        )
+        assert round(weighted_sum, 6) == row.explanation["score_math"]["weighted_sum_0_to_1"]

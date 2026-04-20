@@ -16,8 +16,8 @@ flags:
   enable_liquidity_signal: true
   enable_feature_signal: true
   enable_explanation_payload: true
-  enable_advanced_v2_roi_proxy: false
-  enable_advanced_v2_micro_comps: false
+  enable_advanced_v2_roi_proxy: true
+  enable_advanced_v2_micro_comps: true
 
 # Week 2 advanced scoring contract (Phase 1 config skeleton).
 advanced_v2:

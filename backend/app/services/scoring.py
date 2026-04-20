@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import UTC, date, datetime
+import os
 from pathlib import Path
 from statistics import median
 from typing import Any
@@ -88,11 +89,25 @@ def _deep_merge_dict(defaults: dict[str, Any], overrides: dict[str, Any]) -> dic
 
 
 def _load_scoring_config() -> dict[str, Any]:
-    candidate_paths = [
-        Path("config/scoring.yaml"),
-        Path("../config/scoring.yaml"),
-    ]
+    candidate_paths: list[Path] = []
+    configured_path = os.getenv("SCORING_CONFIG_PATH")
+    if configured_path:
+        candidate_paths.append(Path(configured_path))
+    candidate_paths.extend(
+        [
+            Path("config/scoring.yaml"),
+            Path("../config/scoring.yaml"),
+            Path("/config/scoring.yaml"),
+            Path("/workspace/config/scoring.yaml"),
+            Path(__file__).resolve().parents[2] / "config/scoring.yaml",
+        ]
+    )
+
+    seen: set[Path] = set()
     for path in candidate_paths:
+        if path in seen:
+            continue
+        seen.add(path)
         if path.exists():
             loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
             return _deep_merge_dict(DEFAULT_SCORING_CONFIG, loaded)
@@ -297,6 +312,86 @@ def _deal_reason(
     return "; ".join(reasons[:3])
 
 
+def _build_explanation_payload(
+    *,
+    signal_values: dict[str, float],
+    signal_weights: dict[str, float],
+    weighted_sum: float,
+    final_score: float,
+    confidence: float,
+    comp_level: str | None,
+    comp_size: int,
+    fallback_order: list[str],
+    fallback_penalty: float,
+    roi_config: dict[str, Any],
+    listing: Listing,
+) -> dict[str, Any]:
+    signal_rows: list[dict[str, Any]] = []
+    for name, normalized_score in signal_values.items():
+        weight = float(signal_weights.get(name, 0.0))
+        signal_rows.append(
+            {
+                "name": name,
+                "raw_value": round(normalized_score, 6),
+                "normalized_score": round(normalized_score, 6),
+                "weight": round(weight, 6),
+                "weighted_contribution": round(normalized_score * weight, 6),
+            }
+        )
+
+    signal_rows.sort(key=lambda row: row["weighted_contribution"], reverse=True)
+    primary_driver = signal_rows[0]["name"] if signal_rows else "none"
+    confidence_note = (
+        "Limited metadata reduced confidence"
+        if confidence < 0.5
+        else "Data completeness acceptable"
+    )
+
+    missing_fields: list[str] = []
+    if listing.price is None:
+        missing_fields.append("price")
+    if listing.floor_size is None or listing.floor_size <= 0:
+        missing_fields.append("floor_size")
+    if listing.date_posted is None:
+        missing_fields.append("date_posted")
+
+    risk_flags: list[str] = []
+    if confidence < 0.5:
+        risk_flags.append("low_confidence")
+
+    fallbacks_used: list[str] = []
+    if comp_level in {"city", "province", "global"}:
+        fallbacks_used.append(comp_level)
+
+    return {
+        "summary": {
+            "primary_driver": primary_driver,
+            "confidence_note": confidence_note,
+            "fallbacks_used": fallbacks_used,
+        },
+        "signals": signal_rows,
+        "score_math": {
+            "weighted_sum_0_to_1": round(weighted_sum, 6),
+            "final_score_0_to_100": round(final_score, 2),
+        },
+        "comps_context": {
+            "segment_level": comp_level,
+            "cohort_size": comp_size,
+            "fallback_path": fallback_order,
+            "fallback_penalty": round(fallback_penalty, 6),
+        },
+        "roi_assumptions": {
+            "transaction_cost_pct": float(roi_config.get("transaction_cost_pct", 0.08)),
+            "vacancy_allowance_pct": float(roi_config.get("vacancy_allowance_pct", 0.05)),
+            "maintenance_pct": float(roi_config.get("maintenance_pct", 0.04)),
+            "management_pct": float(roi_config.get("management_pct", 0.08)),
+            "insurance_pct": float(roi_config.get("insurance_pct", 0.01)),
+        },
+        "risk_flags": risk_flags,
+        "missing_fields": missing_fields,
+    }
+
+
 def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
     job = db.get(IngestionJob, job_id)
     if job is None:
@@ -343,8 +438,11 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
     db.execute(delete(ScoreResult).where(ScoreResult.job_id == job_id))
 
     for listing in listings:
+        comp_level: str | None = None
+        comp_size = 0
+        fallback_penalty = 0.0
         if advanced_v2_enabled:
-            _level, comparable, penalty = _resolve_comp_context(
+            comp_level, comparable, fallback_penalty = _resolve_comp_context(
                 listing=listing,
                 comp_index=comp_index,
                 fallback_order=fallback_order,
@@ -352,6 +450,7 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
                 include_bedrooms=include_bedrooms,
                 include_bathrooms=include_bathrooms,
             )
+            comp_size = len(comparable)
             if comparable:
                 comp_prices = [row.price for row in comparable if row.price is not None]
                 comp_ppsqm = [
@@ -362,10 +461,11 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
                 comp_median_price = float(median(comp_prices)) if comp_prices else 0.0
                 comp_median_ppsqm = float(median(comp_ppsqm)) if comp_ppsqm else 0.0
                 price_signal = round(
-                    _clamp(_price_deviation_signal(listing, comp_median_price) - penalty), 4
+                    _clamp(_price_deviation_signal(listing, comp_median_price) - fallback_penalty),
+                    4,
                 )
                 size_signal = round(
-                    _clamp(_size_value_signal(listing, comp_median_ppsqm) - penalty), 4
+                    _clamp(_size_value_signal(listing, comp_median_ppsqm) - fallback_penalty), 4
                 )
             else:
                 price_signal = 0.5
@@ -384,6 +484,22 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
         )
 
         if advanced_v2_enabled:
+            signal_values = {
+                "price_vs_comp": price_signal,
+                "size_vs_comp": size_signal,
+                "time_on_market": time_signal,
+                "feature_value": feature_signal,
+                "confidence": confidence,
+                "roi_proxy": roi_signal,
+            }
+            signal_weights = {
+                "price_vs_comp": float(advanced_weights.get("price_vs_comp", 0.3)),
+                "size_vs_comp": float(advanced_weights.get("size_vs_comp", 0.18)),
+                "time_on_market": float(advanced_weights.get("time_on_market", 0.14)),
+                "feature_value": float(advanced_weights.get("feature_value", 0.1)),
+                "confidence": float(advanced_weights.get("confidence", 0.08)),
+                "roi_proxy": float(advanced_weights.get("roi_proxy", 0.2)),
+            }
             weighted = (
                 float(advanced_weights.get("price_vs_comp", 0.3)) * price_signal
                 + float(advanced_weights.get("size_vs_comp", 0.18)) * size_signal
@@ -393,6 +509,20 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
                 + float(advanced_weights.get("roi_proxy", 0.2)) * roi_signal
             )
         else:
+            signal_values = {
+                "price_deviation": price_signal,
+                "feature_value": size_signal,
+                "time_on_market": time_signal,
+                "liquidity": feature_signal,
+                "confidence": confidence,
+            }
+            signal_weights = {
+                "price_deviation": float(weights["price_deviation"]),
+                "feature_value": float(weights["feature_value"]),
+                "time_on_market": float(weights["time_on_market"]),
+                "liquidity": float(weights["liquidity"]),
+                "confidence": float(weights["confidence"]),
+            }
             weighted = (
                 weights["price_deviation"] * price_signal
                 + weights["feature_value"] * size_signal
@@ -401,6 +531,19 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
                 + weights["confidence"] * confidence
             )
         score = round(_clamp(weighted) * 100.0, 2)
+        explanation = _build_explanation_payload(
+            signal_values=signal_values,
+            signal_weights=signal_weights,
+            weighted_sum=_clamp(weighted),
+            final_score=score,
+            confidence=confidence,
+            comp_level=comp_level,
+            comp_size=comp_size,
+            fallback_order=fallback_order,
+            fallback_penalty=fallback_penalty,
+            roi_config=roi_config,
+            listing=listing,
+        )
 
         db.add(
             ScoreResult(
@@ -415,6 +558,7 @@ def run_scoring_job(db: Session, job_id: int) -> IngestionJob:
                     feature_signal=feature_signal,
                     confidence_signal=confidence,
                 ),
+                explanation=explanation,
                 model_version="advanced_v2" if advanced_v2_enabled else "baseline_v1",
             )
         )
