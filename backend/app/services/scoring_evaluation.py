@@ -16,12 +16,28 @@ from app.services.scoring import _clamp, _load_scoring_config
 
 
 def _safe_divide(numerator: float, denominator: float) -> float:
+    """Divide safely and return 0.0 on zero denominator.
+
+    Why this exists:
+    - Evaluation math uses ratios in multiple places.
+    - A zero denominator should not crash a release-gate run.
+    """
     if denominator == 0:
         return 0.0
     return numerator / denominator
 
 
 def _compute_jaccard(left_ids: list[str], right_ids: list[str]) -> float:
+    """Measure set overlap using Jaccard similarity.
+
+    Formula:
+    - |intersection| / |union|
+
+    Interpretation:
+    - 1.0 means the sets are identical.
+    - 0.0 means no overlap.
+    - Used here to check whether top-N listings stayed mostly the same.
+    """
     left_set = set(left_ids)
     right_set = set(right_ids)
     union_size = len(left_set | right_set)
@@ -31,10 +47,21 @@ def _compute_jaccard(left_ids: list[str], right_ids: list[str]) -> float:
 
 
 def _spearman_rank_correlation(current_ids: list[str], reference_ids: list[str]) -> float:
-    # Spearman compares ranking order between two runs:
-    # +1.0 means near-identical ordering, 0 means weak relationship,
-    # and -1.0 means the order is effectively reversed.
-    # We use it to catch unstable ranking behavior even when top-N overlap looks acceptable.
+    """Compare ordering consistency between two ranked lists.
+
+    How it works:
+    - Convert each list into rank positions.
+    - Keep only items that appear in both lists.
+    - Compute correlation on those rank positions.
+
+    Interpretation:
+    - +1.0: near-identical order
+    - 0.0: weak relationship
+    - -1.0: near-reversed order
+
+    Why it matters:
+    - Top-N overlap alone can look fine while overall ordering drifts heavily.
+    """
     current_rank = {listing_id: idx + 1 for idx, listing_id in enumerate(current_ids)}
     reference_rank = {listing_id: idx + 1 for idx, listing_id in enumerate(reference_ids)}
     common_ids = sorted(set(current_rank) & set(reference_rank))
@@ -45,7 +72,16 @@ def _spearman_rank_correlation(current_ids: list[str], reference_ids: list[str])
     reference_values = [float(reference_rank[listing_id]) for listing_id in common_ids]
     return round(float(correlation(current_values, reference_values)), 4)
 
+
 def _sorted_scores(db: Session, job_id: int) -> list[ScoreResult]:
+    """Fetch one job's score rows in deterministic rank order.
+
+    Sort order:
+    - Primary: score descending (higher scores rank first).
+    - Secondary: listing_id ascending as a deterministic tie-breaker.
+
+    Tie-breakers are important so repeated runs produce stable ordering for equal scores.
+    """
     # listing_id is used only as a deterministic tie-breaker when scores are equal.
     return db.scalars(
         select(ScoreResult)
@@ -55,6 +91,16 @@ def _sorted_scores(db: Session, job_id: int) -> list[ScoreResult]:
 
 
 def _ranking_identity_map(db: Session, job_id: int) -> dict[int, str]:
+    """Map internal DB listing IDs to cross-run comparable IDs.
+
+    Why this exists:
+    - `score_results.listing_id` is an internal DB key and differs across jobs.
+    - Stability comparisons should use a stable external identity.
+
+    Strategy:
+    - Prefer external `listing.listing_id`.
+    - Fall back to `internal-<id>` when external ID is missing.
+    """
     listings = db.scalars(select(Listing).where(Listing.job_id == job_id)).all()
     identities: dict[int, str] = {}
     for listing in listings:
@@ -68,6 +114,15 @@ def _ranking_identity_map(db: Session, job_id: int) -> dict[int, str]:
 
 
 def _dominance_ratio(score_row: ScoreResult) -> float:
+    """Compute how much one signal dominates the explanation contributions.
+
+    Formula:
+    - max(abs(weighted_contribution)) / sum(abs(weighted_contribution))
+
+    Interpretation:
+    - Values near 1.0 indicate one signal is doing almost all the work.
+    - High dominance can indicate brittle or unbalanced scoring.
+    """
     if not score_row.explanation:
         return 1.0
     signals = score_row.explanation.get("signals")
@@ -87,6 +142,16 @@ def _dominance_ratio(score_row: ScoreResult) -> float:
 
 
 def _score_math_consistent(score_row: ScoreResult) -> bool:
+    """Validate that explanation math matches stored score values.
+
+    Checks:
+    - Re-sum `signals[].weighted_contribution` and compare to
+      `score_math.weighted_sum_0_to_1`.
+    - Compare row `score` to `score_math.final_score_0_to_100`.
+
+    This protects against explainability drift where narrative payloads disagree
+    with actual scoring outputs.
+    """
     if not score_row.explanation:
         return False
 
@@ -110,6 +175,13 @@ def _score_math_consistent(score_row: ScoreResult) -> bool:
 
 
 def _extract_signal_vectors(score_row: ScoreResult) -> dict[str, tuple[float, float]]:
+    """Extract per-signal (normalized_score, weight) pairs from explanation payload.
+
+    Output shape:
+    - {signal_name: (normalized_score, weight)}
+
+    This is the base structure used for perturbation sensitivity simulations.
+    """
     explanation = score_row.explanation or {}
     signals = explanation.get("signals")
     if not isinstance(signals, list):
@@ -134,6 +206,17 @@ def _perturbed_score(
     target_signal: str,
     delta: float,
 ) -> float:
+    """Recompute a simulated score after perturbing one signal weight.
+
+    Process:
+    - Increase/decrease one target weight by `delta` (e.g., +0.05 or -0.10).
+    - Keep other weights unchanged.
+    - Re-normalize all weights to sum to 1.
+    - Recompute weighted score.
+
+    Purpose:
+    - Estimate sensitivity: does a small weight tweak cause large ranking movement?
+    """
     if not vectors:
         return 0.0
 
@@ -160,6 +243,17 @@ def _compute_perturbation_overlap(
     top_n: int,
     deltas: list[float],
 ) -> tuple[float, list[dict[str, Any]]]:
+    """Run perturbation experiments and measure top-N stability.
+
+    For each signal and each delta:
+    - recompute perturbed scores
+    - rerank listings
+    - compare perturbed top-N vs baseline top-N using Jaccard
+
+    Returns:
+    - minimum top-N overlap across all experiments (worst-case stability)
+    - detailed per-experiment metrics for audit/debugging
+    """
     if not rows:
         return 0.0, []
 
@@ -208,6 +302,22 @@ def run_scoring_evaluation(
     reference_job_id: int | None = None,
     top_n: int = 20,
 ) -> dict[str, Any]:
+    """Evaluate one scoring run and produce a release decision artifact.
+
+    Gate families:
+    - Data quality: valid/duplicate/null-rate thresholds.
+    - Scoring sanity: score bounds, impossible top ranks, signal dominance.
+    - Explainability: payload presence and math consistency.
+    - Stability: top-N overlap, rank correlation, perturbation robustness.
+
+    Decision logic:
+    - `revert` if any critical gate fails.
+    - `experimental` if sample is too small or warnings remain.
+    - `promote` only when all required gates pass.
+
+    Side effect:
+    - Writes `output/evaluations/<run_id>/scoring_evaluation.json`.
+    """
     config = _load_scoring_config()
     thresholds = config.get("evaluation_thresholds", {})
     data_thresholds = thresholds.get("data_quality", {})
