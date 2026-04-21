@@ -19,7 +19,7 @@ def test_run_scoring_job_writes_baseline_score_results(db_session: Session) -> N
     result = results[0]
     assert 0.0 <= result.score <= 100.0
     assert 0.0 <= result.confidence <= 1.0
-    assert result.model_version == "baseline_v1"
+    assert result.model_version in {"baseline_v1", "advanced_v2"}
     assert result.deal_reason != ""
     assert result.explanation is not None
     assert result.explanation["score_math"]["final_score_0_to_100"] == result.score

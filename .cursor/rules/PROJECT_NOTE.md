@@ -1,3 +1,11 @@
+TODOS:
+
+- [ ] First, create a few datasets for testing purposes
+1. 1000 listings set from p24, and 1000 listings set from privateproperty
+2. a dataset with both p24 and 1000 listings from privateproperty joined
+- [ ] phase 3 in week-2-execution plan
+
+
 # 🏠 Real Estate Deal Intelligence Platform (Full System)
 
 ## 🎯 Goal

@@ -1,9 +1,9 @@
 from __future__ import annotations
 
+import os
 from collections.abc import Sequence
 from copy import deepcopy
 from datetime import UTC, date, datetime
-import os
 from pathlib import Path
 from statistics import median
 from typing import Any
@@ -61,8 +61,25 @@ DEFAULT_SCORING_CONFIG: dict[str, Any] = {
         },
     },
     "evaluation_thresholds": {
-        "top20_jaccard_min": 0.7,
-        "rank_correlation_min": 0.8,
+        "data_quality": {
+            "valid_rate_min": 0.85,
+            "duplicate_rate_max": 0.05,
+            "price_null_rate_max": 0.10,
+        },
+        "scoring_sanity": {
+            "score_min": 0.0,
+            "score_max": 100.0,
+            "signal_dominance_cap": 0.70,
+            "high_score_cutoff": 80.0,
+        },
+        "stability": {
+            "top20_jaccard_min": 0.7,
+            "rank_correlation_min": 0.8,
+            "perturbation_overlap_min": 0.6,
+        },
+        "decision": {
+            "minimum_sample_for_promote": 100,
+        },
     },
 }
 

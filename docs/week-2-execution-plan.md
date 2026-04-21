@@ -35,13 +35,120 @@ Do not include:
 
 ## Phase 3: Evaluation Gates
 
-1. Implement automated quality checks from `docs/evaluation-review-protocol.md`.
-2. Add stability checks:
-   - top-N overlap
-   - rank correlation
-   - weight perturbation sensitivity
-3. Add release decision output:
-   - promote / revert / experimental.
+Goal in simple terms:
+- Before we trust `advanced_v2`, we need a repeatable "quality referee" that checks data health, score sanity, ranking stability, and explanation integrity.
+- If checks pass, we can promote; if critical checks fail, we revert; if mixed, we keep the change experimental.
+
+### Phase 3.1 Automated Quality Checks (required baseline)
+
+What this means (simple):
+- Every evaluation run should generate a machine-readable report saying pass/warn/fail for required gates.
+- This removes guesswork and reduces intuition-only release decisions.
+
+Implementation steps:
+1. Define a scoring evaluation report schema that includes:
+   - run metadata (job_id, model_version, config/threshold snapshot, timestamp)
+   - gate results (data quality, scoring sanity, stability, explainability)
+   - final decision and rationale (`promote` / `revert` / `experimental`)
+2. Implement gate calculations aligned to `docs/evaluation-review-protocol.md`:
+   - data quality: valid rate, duplicate rate, null-rate checks
+   - scoring sanity: score bounds, impossible top-ranked record checks, signal dominance cap
+   - explainability: explanation present and score-math consistency checks for top-N
+3. Persist the evaluation artifact in a predictable path:
+   - `output/evaluations/<run_id>/scoring_evaluation.json`
+4. Keep thresholds configurable (from `config/scoring.yaml`) with safe defaults.
+
+### Phase 3.2 Stability Checks (required release gate)
+
+What this means (simple):
+- If tiny config changes completely reshuffle rankings, the model is too fragile.
+- Stability checks tell us whether ranking behavior is reliable enough to ship.
+
+Implementation steps:
+1. Add top-N overlap metric:
+   - compute Jaccard overlap between current top-20 and reference top-20
+   - compare against threshold (default `top20_jaccard_min`)
+2. Add rank correlation metric:
+   - compute full-list rank correlation vs reference ranking
+   - compare against threshold (default `rank_correlation_min`)
+3. Add weight perturbation sensitivity:
+   - run controlled +/-5% to +/-10% weight perturbation experiments
+   - measure whether top ranking collapses or shifts beyond acceptable limits
+4. Store all stability metrics in the same evaluation artifact for auditability.
+
+### Phase 3.3 Release Decision Output (promote/revert/experimental)
+
+What this means (simple):
+- We need one clear answer at the end of each run: ship it, roll it back, or keep testing.
+
+Decision logic:
+1. `promote` if all required automated gates pass and no critical failures exist.
+2. `revert` if any critical gate fails (data quality hard fail, severe instability, or broken explainability).
+3. `experimental` if results are mixed (non-critical warnings, marginal stability, or pending manual review).
+
+Output requirements:
+- Include machine-readable fields:
+  - `decision`
+  - `decision_reasons[]`
+  - `failed_gates[]`
+  - `warning_gates[]`
+  - `recommended_next_actions[]`
+
+### Code Changes Required (implementation checklist)
+
+Create/modify these files during implementation:
+
+1. **Evaluation service**
+   - Create: `backend/app/services/scoring_evaluation.py`
+   - Responsibility:
+     - load scored results for current and reference runs
+     - compute gate metrics + pass/warn/fail statuses
+     - compute final decision output
+     - write evaluation artifact to `output/evaluations/<run_id>/`
+
+2. **Dataset validation integration**
+   - Modify: `backend/app/services/dataset_validation.py`
+   - Responsibility:
+     - expose reusable data quality metrics for evaluation gates
+     - align threshold usage with config-driven defaults where applicable
+
+3. **Scoring config thresholds**
+   - Modify: `config/scoring.yaml`
+   - Add/confirm:
+     - data quality thresholds (valid/duplicate/null rate)
+     - stability thresholds (top-N overlap, rank correlation)
+     - sensitivity thresholds (acceptable perturbation drift)
+     - gate severity mapping (critical vs warning)
+
+4. **CLI entrypoint (CLI-first workflow)**
+   - Modify: `backend/app/cli.py`
+   - Add:
+     - `evaluate-scoring` command (or equivalent) that runs evaluation and prints decision summary
+   - Keep:
+     - output concise for terminal use and deterministic for automation
+
+5. **Tests**
+   - Update/Create:
+     - `backend/tests/test_dataset_validation_service.py`
+     - `backend/tests/test_scoring_algorithms.py`
+     - `backend/tests/test_scoring_service.py`
+     - `backend/tests/test_scoring_v2_evaluation.py` (new)
+   - Cover:
+     - metric correctness for top-N overlap and rank correlation
+     - perturbation sensitivity behavior for stable vs unstable cases
+     - decision classification (`promote`/`revert`/`experimental`)
+     - artifact shape and required fields
+
+### Phase 3 Done Criteria (review gate before moving to Phase 4)
+
+- Automated evaluation report is generated from CLI for a scoring run.
+- Stability metrics are present and thresholded.
+- Decision output is deterministic for identical inputs/config.
+- Tests cover gate calculations and decision branching.
+- Docs remain aligned with:
+  - `docs/evaluation-review-protocol.md`
+  - `docs/week2-interface-contract.md`
+  - `docs/week2-implementation-playbook.md`
 
 ## Phase 4: Performance Baseline
 
