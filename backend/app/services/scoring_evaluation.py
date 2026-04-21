@@ -260,22 +260,25 @@ def _compute_perturbation_overlap(
     baseline_top_ids = [row.listing_id for row in rows[:top_n]]
     experiments: list[dict[str, Any]] = []
     overlaps: list[float] = []
+
+    row_vectors: list[tuple[int, dict[str, tuple[float, float]]]] = []
     signal_names: set[str] = set()
     for row in rows:
-        signal_names.update(_extract_signal_vectors(row).keys())
+        vectors = _extract_signal_vectors(row)
+        if not vectors:
+            continue
+        row_vectors.append((row.listing_id, vectors))
+        signal_names.update(vectors.keys())
     if not signal_names:
         return 0.0, []
 
     for signal_name in sorted(signal_names):
         for delta in deltas:
             perturbed_rows: list[tuple[int, float]] = []
-            for row in rows:
-                vectors = _extract_signal_vectors(row)
-                if not vectors:
-                    continue
+            for listing_id, vectors in row_vectors:
                 perturbed_rows.append(
                     (
-                        row.listing_id,
+                        listing_id,
                         _perturbed_score(vectors, target_signal=signal_name, delta=delta),
                     )
                 )
@@ -297,6 +300,7 @@ def _compute_perturbation_overlap(
     return round(min(overlaps), 4), experiments
 
 
+# continue here
 def run_scoring_evaluation(
     db: Session,
     job_id: int,
@@ -317,7 +321,7 @@ def run_scoring_evaluation(
     - `promote` only when all required gates pass.
 
     Side effect:
-    - Writes `output/evaluations/<run_id>/scoring_evaluation.json`.
+    - Writes `output/evaluations/<run_id>/scoring_evaluation_<timestamp>.json`.
     """
     config = _load_scoring_config()
     thresholds = config.get("evaluation_thresholds", {})
@@ -344,8 +348,24 @@ def run_scoring_evaluation(
         and validation.duplicate_rate <= duplicate_rate_max
         and validation.price_null_rate <= price_null_rate_max
     )
+    data_quality_failures: list[str] = []
+    if validation.valid_rate < valid_rate_min:
+        data_quality_failures.append(
+            f"valid_rate_below_min: actual={validation.valid_rate}, required>={valid_rate_min}"
+        )
+    if validation.duplicate_rate > duplicate_rate_max:
+        data_quality_failures.append(
+            "duplicate_rate_above_max: "
+            f"actual={validation.duplicate_rate}, required<={duplicate_rate_max}"
+        )
+    if validation.price_null_rate > price_null_rate_max:
+        data_quality_failures.append(
+            "price_null_rate_above_max: "
+            f"actual={validation.price_null_rate}, required<={price_null_rate_max}"
+        )
     data_quality_gate = {
         "status": "pass" if data_quality_pass else "fail",
+        "failure_reasons": data_quality_failures,
         "metrics": {
             "valid_rate": validation.valid_rate,
             "duplicate_rate": validation.duplicate_rate,
@@ -499,6 +519,7 @@ def run_scoring_evaluation(
         decision = "promote"
         decision_reasons.append("All required gates passed.")
 
+    # continue here
     recommended_next_actions: list[str] = []
     if decision == "revert":
         recommended_next_actions.append("Rollback scoring profile changes and review failed gates.")
@@ -507,18 +528,20 @@ def run_scoring_evaluation(
     else:
         recommended_next_actions.append("Promote scoring profile and monitor post-release metrics.")
 
-    timestamp = datetime.now(UTC).strftime("%Y%m%d%H%M%S")
-    run_id = f"job-{job_id}-ref-{reference_job_id or 'none'}-{timestamp}"
+    evaluation_time_utc = datetime.now(UTC)
+    timestamp_compact = evaluation_time_utc.strftime("%Y%m%d%H%M%S")
+    timestamp_readable = evaluation_time_utc.strftime("%Y-%m-%d_%H-%M-%SZ")
+    run_id = f"job-{job_id}-ref-{reference_job_id or 'none'}-{timestamp_compact}"
     output_dir = Path("output") / "evaluations" / run_id
     output_dir.mkdir(parents=True, exist_ok=True)
-    report_path = output_dir / "scoring_evaluation.json"
+    report_path = output_dir / f"scoring_evaluation_{timestamp_readable}.json"
 
     report = {
         "run_id": run_id,
         "job_id": job_id,
         "reference_job_id": reference_job_id,
         "model_version": model_version,
-        "timestamp_utc": datetime.now(UTC).isoformat(),
+        "timestamp_utc": evaluation_time_utc.isoformat(),
         "sample_size": len(current_rows),
         "top_n": top_n,
         "gates": {
