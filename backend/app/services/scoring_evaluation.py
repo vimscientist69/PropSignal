@@ -260,12 +260,13 @@ def _compute_perturbation_overlap(
     baseline_top_ids = [row.listing_id for row in rows[:top_n]]
     experiments: list[dict[str, Any]] = []
     overlaps: list[float] = []
-
-    seed_vectors = _extract_signal_vectors(rows[0])
-    if not seed_vectors:
+    signal_names: set[str] = set()
+    for row in rows:
+        signal_names.update(_extract_signal_vectors(row).keys())
+    if not signal_names:
         return 0.0, []
 
-    for signal_name in seed_vectors:
+    for signal_name in sorted(signal_names):
         for delta in deltas:
             perturbed_rows: list[tuple[int, float]] = []
             for row in rows:
