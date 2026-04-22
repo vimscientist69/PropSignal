@@ -15,3 +15,50 @@ rules:
 flags:
   enable_liquidity_signal: true
   enable_feature_signal: true
+  enable_explanation_payload: true
+  enable_advanced_v2_roi_proxy: true
+  enable_advanced_v2_micro_comps: true
+
+# Week 2 advanced scoring contract (Phase 1 config skeleton).
+advanced_v2:
+  weights:
+    price_vs_comp: 0.3
+    size_vs_comp: 0.18
+    time_on_market: 0.14
+    feature_value: 0.1
+    confidence: 0.08
+    roi_proxy: 0.2
+  comps:
+    minimum_cohort_size: 12
+    fallback_order:
+      - suburb
+      - city
+      - province
+      - global
+    include_bedrooms: true
+    include_bathrooms: true
+  roi:
+    # Heuristic starting assumptions for MVP.
+    # These are NOT market-calibrated truths and must be tuned per target market.
+    transaction_cost_pct: 0.08
+    vacancy_allowance_pct: 0.05
+    maintenance_pct: 0.04
+    management_pct: 0.08
+    insurance_pct: 0.01
+
+evaluation_thresholds:
+  data_quality:
+    valid_rate_min: 0.85
+    duplicate_rate_max: 0.05
+    price_null_rate_max: 0.10
+  scoring_sanity:
+    score_min: 0.0
+    score_max: 100.0
+    signal_dominance_cap: 0.70
+    high_score_cutoff: 80.0
+  stability:
+    top20_jaccard_min: 0.7
+    rank_correlation_min: 0.8
+    perturbation_overlap_min: 0.6
+  decision:
+    minimum_sample_for_promote: 100

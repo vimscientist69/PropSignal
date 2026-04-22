@@ -19,8 +19,12 @@ def test_run_scoring_job_writes_baseline_score_results(db_session: Session) -> N
     result = results[0]
     assert 0.0 <= result.score <= 100.0
     assert 0.0 <= result.confidence <= 1.0
-    assert result.model_version == "baseline_v1"
+    assert result.model_version in {"baseline_v1", "advanced_v2"}
     assert result.deal_reason != ""
+    assert result.explanation is not None
+    assert result.explanation["score_math"]["final_score_0_to_100"] == result.score
+    weighted_sum = sum(float(row["weighted_contribution"]) for row in result.explanation["signals"])
+    assert round(weighted_sum, 6) == result.explanation["score_math"]["weighted_sum_0_to_1"]
 
 
 def test_run_scoring_job_is_idempotent_for_same_job(db_session: Session) -> None:

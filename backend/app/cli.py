@@ -8,6 +8,7 @@ from app.services.dataset_validation import run_dataset_validation
 from app.services.exporting import export_job_results
 from app.services.ingestion import ingest_propflux_file
 from app.services.scoring import run_scoring_job
+from app.services.scoring_evaluation import run_scoring_evaluation
 
 app = typer.Typer(help="PropSignal CLI (pre-Week-1).")
 
@@ -58,6 +59,27 @@ def validate_dataset(job_id: int) -> None:
         f"valid_rate={result.valid_rate}, invalid_rate={result.invalid_rate}"
     )
     typer.echo(f"Report written to: {result.report_path}")
+
+
+@app.command("evaluate-scoring")
+def evaluate_scoring(
+    job_id: int,
+    reference_job_id: int | None = typer.Option(None, "--reference-job-id"),
+    top_n: int = typer.Option(20, "--top-n"),
+) -> None:
+    with SessionLocal() as db:
+        report = run_scoring_evaluation(
+            db,
+            job_id=job_id,
+            reference_job_id=reference_job_id,
+            top_n=top_n,
+        )
+    typer.echo(
+        "Scoring evaluation completed for "
+        f"job={job_id}, decision={report['decision']}, "
+        f"failed_gates={','.join(report['failed_gates']) or 'none'}"
+    )
+    typer.echo(f"Report written to: {report['report_path']}")
 
 
 if __name__ == "__main__":
