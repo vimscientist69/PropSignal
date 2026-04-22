@@ -7,9 +7,9 @@ TODOS:
 
 Unfinished prompts for phase 3 (scoring_evaluation.py):
 
-1. possibly should it store the impossible top ranked rows and the dominance violation rows or at least their ids to do manual database lookup and inspection?
+1. side note, if I am correct it should not just evaluate the top n, but also the mid n and bottom n.
 
-2. side note, if I am correct it should not just evaluate the top n, but also the mid n and bottom n.
+2. get progress report on phase 3
 
 # 🏠 Real Estate Deal Intelligence Platform (Full System)
 
