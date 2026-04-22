@@ -168,6 +168,7 @@ def test_scoring_evaluation_marks_experimental_when_sample_too_small(
     assert "sample_size" in report["warning_gates"]
 
 
+# todo: verify logic is correct
 def test_top_band_displacement_threshold_can_fail(db_session: Session, monkeypatch) -> None:
     current_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
     reference_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
@@ -175,10 +176,10 @@ def test_top_band_displacement_threshold_can_fail(db_session: Session, monkeypat
     base_config = scoring_evaluation._load_scoring_config()
     strict_config = copy.deepcopy(base_config)
     strict_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
-        "median_abs_rank_shift_max"
+        "median_abs_rank_shift_pct_max"
     ] = 0
     strict_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
-        "p90_rank_shift_max"
+        "p90_rank_shift_pct_max"
     ] = 0
     monkeypatch.setattr(scoring_evaluation, "_load_scoring_config", lambda: strict_config)
 
@@ -204,6 +205,7 @@ def test_top_band_displacement_threshold_can_fail(db_session: Session, monkeypat
     assert "stability" in report["failed_gates"]
 
 
+# todo: verify logic is correct
 def test_full_dataset_displacement_warning_is_context_only(
     db_session: Session, monkeypatch
 ) -> None:
@@ -213,17 +215,17 @@ def test_full_dataset_displacement_warning_is_context_only(
     base_config = scoring_evaluation._load_scoring_config()
     warn_config = copy.deepcopy(base_config)
     warn_config["evaluation_thresholds"]["stability"]["full_dataset"][
-        "median_abs_rank_shift_warn_max"
+        "median_abs_rank_shift_pct_warn_max"
     ] = -1
     warn_config["evaluation_thresholds"]["stability"]["full_dataset"][
-        "p90_rank_shift_warn_max"
+        "p90_rank_shift_pct_warn_max"
     ] = -1
     # Keep top thresholds permissive so warning is context-only.
     warn_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
-        "median_abs_rank_shift_max"
+        "median_abs_rank_shift_pct_max"
     ] = 10_000
     warn_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
-        "p90_rank_shift_max"
+        "p90_rank_shift_pct_max"
     ] = 10_000
     monkeypatch.setattr(scoring_evaluation, "_load_scoring_config", lambda: warn_config)
 

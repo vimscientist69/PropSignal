@@ -248,16 +248,23 @@ def _rank_displacement_metrics(
             "intersection_count": 0.0,
             "median_abs_rank_shift": 0.0,
             "p90_rank_shift": 0.0,
+            "median_abs_rank_shift_pct": 0.0,
+            "p90_rank_shift_pct": 0.0,
         }
 
     shifts = [
         float(abs(current_global_rank[listing_id] - reference_global_rank[listing_id]))
         for listing_id in shared_ids
     ]
+    rank_span = max(len(current_global_rank), len(reference_global_rank)) - 1
+    rank_span = max(rank_span, 1)
+    shift_pcts = [shift / rank_span for shift in shifts]
     return {
         "intersection_count": float(len(shared_ids)),
         "median_abs_rank_shift": round(float(median(shifts)), 4),
         "p90_rank_shift": round(_percentile(shifts, 0.90), 4),
+        "median_abs_rank_shift_pct": round(float(median(shift_pcts)), 6),
+        "p90_rank_shift_pct": round(_percentile(shift_pcts, 0.90), 6),
     }
 
 
@@ -289,16 +296,18 @@ def _evaluate_segment_stability(
         rank_corr_min = thresholds.get("rank_correlation_min")
         if rank_corr_min is not None and rank_correlation < float(rank_corr_min):
             failed_checks.append(f"rank_corr_below_min:{rank_correlation}<{rank_corr_min}")
-        median_max = thresholds.get("median_abs_rank_shift_max")
-        if median_max is not None and displacement["median_abs_rank_shift"] > float(median_max):
+        median_pct_max = thresholds.get("median_abs_rank_shift_pct_max")
+        if median_pct_max is not None and displacement["median_abs_rank_shift_pct"] > float(
+            median_pct_max
+        ):
             failed_checks.append(
-                "median_abs_rank_shift_above_max:"
-                f"{displacement['median_abs_rank_shift']}>{median_max}"
+                "median_abs_rank_shift_pct_above_max:"
+                f"{displacement['median_abs_rank_shift_pct']}>{median_pct_max}"
             )
-        p90_max = thresholds.get("p90_rank_shift_max")
-        if p90_max is not None and displacement["p90_rank_shift"] > float(p90_max):
+        p90_pct_max = thresholds.get("p90_rank_shift_pct_max")
+        if p90_pct_max is not None and displacement["p90_rank_shift_pct"] > float(p90_pct_max):
             failed_checks.append(
-                f"p90_rank_shift_above_max:{displacement['p90_rank_shift']}>{p90_max}"
+                f"p90_rank_shift_pct_above_max:{displacement['p90_rank_shift_pct']}>{p90_pct_max}"
             )
     else:
         jaccard_warn_min = thresholds.get("jaccard_warn_min")
@@ -309,18 +318,21 @@ def _evaluate_segment_stability(
             failed_checks.append(
                 f"rank_corr_below_warn_min:{rank_correlation}<{rank_corr_warn_min}"
             )
-        median_warn_max = thresholds.get("median_abs_rank_shift_warn_max")
-        if median_warn_max is not None and displacement["median_abs_rank_shift"] > float(
-            median_warn_max
+        median_pct_warn_max = thresholds.get("median_abs_rank_shift_pct_warn_max")
+        if median_pct_warn_max is not None and displacement["median_abs_rank_shift_pct"] > float(
+            median_pct_warn_max
         ):
             failed_checks.append(
-                "median_abs_rank_shift_above_warn_max:"
-                f"{displacement['median_abs_rank_shift']}>{median_warn_max}"
+                "median_abs_rank_shift_pct_above_warn_max:"
+                f"{displacement['median_abs_rank_shift_pct']}>{median_pct_warn_max}"
             )
-        p90_warn_max = thresholds.get("p90_rank_shift_warn_max")
-        if p90_warn_max is not None and displacement["p90_rank_shift"] > float(p90_warn_max):
+        p90_pct_warn_max = thresholds.get("p90_rank_shift_pct_warn_max")
+        if p90_pct_warn_max is not None and displacement["p90_rank_shift_pct"] > float(
+            p90_pct_warn_max
+        ):
             failed_checks.append(
-                f"p90_rank_shift_above_warn_max:{displacement['p90_rank_shift']}>{p90_warn_max}"
+                "p90_rank_shift_pct_above_warn_max:"
+                f"{displacement['p90_rank_shift_pct']}>{p90_pct_warn_max}"
             )
 
     status = "pass" if not failed_checks else severity
@@ -335,6 +347,8 @@ def _evaluate_segment_stability(
             "rank_correlation": rank_correlation,
             "median_abs_rank_shift": displacement["median_abs_rank_shift"],
             "p90_rank_shift": displacement["p90_rank_shift"],
+            "median_abs_rank_shift_pct": displacement["median_abs_rank_shift_pct"],
+            "p90_rank_shift_pct": displacement["p90_rank_shift_pct"],
         },
         "thresholds": thresholds,
         "violation_details": {"failed_checks": failed_checks},
@@ -635,25 +649,30 @@ def run_scoring_evaluation(
             reference_global_rank,
         )
         full_warn_checks: list[str] = []
-        full_median_warn_max = float(full_dataset_cfg.get("median_abs_rank_shift_warn_max", 200))
-        full_p90_warn_max = float(full_dataset_cfg.get("p90_rank_shift_warn_max", 1000))
-        if full_displacement["median_abs_rank_shift"] > full_median_warn_max:
+        full_median_pct_warn_max = float(
+            full_dataset_cfg.get("median_abs_rank_shift_pct_warn_max", 0.35)
+        )
+        full_p90_pct_warn_max = float(full_dataset_cfg.get("p90_rank_shift_pct_warn_max", 0.80))
+        if full_displacement["median_abs_rank_shift_pct"] > full_median_pct_warn_max:
             full_warn_checks.append(
-                "median_abs_rank_shift_above_warn_max:"
-                f"{full_displacement['median_abs_rank_shift']}>{full_median_warn_max}"
+                "median_abs_rank_shift_pct_above_warn_max:"
+                f"{full_displacement['median_abs_rank_shift_pct']}>{full_median_pct_warn_max}"
             )
-        if full_displacement["p90_rank_shift"] > full_p90_warn_max:
+        if full_displacement["p90_rank_shift_pct"] > full_p90_pct_warn_max:
             full_warn_checks.append(
-                f"p90_rank_shift_above_warn_max:{full_displacement['p90_rank_shift']}>{full_p90_warn_max}"
+                "p90_rank_shift_pct_above_warn_max:"
+                f"{full_displacement['p90_rank_shift_pct']}>{full_p90_pct_warn_max}"
             )
         full_dataset_status = "warn" if full_warn_checks else "pass"
         full_dataset_metrics = {
             "intersection_count": int(full_displacement["intersection_count"]),
             "median_abs_rank_shift": full_displacement["median_abs_rank_shift"],
             "p90_rank_shift": full_displacement["p90_rank_shift"],
+            "median_abs_rank_shift_pct": full_displacement["median_abs_rank_shift_pct"],
+            "p90_rank_shift_pct": full_displacement["p90_rank_shift_pct"],
             "thresholds": {
-                "median_abs_rank_shift_warn_max": full_median_warn_max,
-                "p90_rank_shift_warn_max": full_p90_warn_max,
+                "median_abs_rank_shift_pct_warn_max": full_median_pct_warn_max,
+                "p90_rank_shift_pct_warn_max": full_p90_pct_warn_max,
             },
             "status": full_dataset_status,
             "violation_details": {"failed_checks": full_warn_checks},
