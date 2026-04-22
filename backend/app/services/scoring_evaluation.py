@@ -366,6 +366,13 @@ def run_scoring_evaluation(
     data_quality_gate = {
         "status": "pass" if data_quality_pass else "fail",
         "failure_reasons": data_quality_failures,
+        "violation_details": {
+            "record_level_ids_available": False,
+            "inspection_hint": (
+                "Data-quality checks are aggregate metrics from dataset validation; "
+                "use the dataset validation report for deeper raw-row diagnostics."
+            ),
+        },
         "metrics": {
             "valid_rate": validation.valid_rate,
             "duplicate_rate": validation.duplicate_rate,
@@ -383,29 +390,65 @@ def run_scoring_evaluation(
     dominance_cap = float(sanity_thresholds.get("signal_dominance_cap", 0.70))
     high_score_cutoff = float(sanity_thresholds.get("high_score_cutoff", 80.0))
 
-    out_of_range_count = sum(
-        1 for row in current_rows if row.score < score_min or row.score > score_max
-    )
+    out_of_range_rows = [
+        {
+            "listing_db_id": row.listing_id,
+            "listing_identity": current_identity_map.get(
+                row.listing_id, f"internal-{row.listing_id}"
+            ),
+            "score": row.score,
+        }
+        for row in current_rows
+        if row.score < score_min or row.score > score_max
+    ]
     listing_lookup = {
         listing.id: listing
         for listing in db.scalars(select(Listing).where(Listing.job_id == job_id)).all()
     }
-    impossible_top_ranked = 0
+    impossible_top_ranked_rows: list[dict[str, Any]] = []
     for row in sampled_rows:
         listing = listing_lookup.get(row.listing_id)
         if listing and listing.price <= 0 and row.score >= high_score_cutoff:
-            impossible_top_ranked += 1
+            impossible_top_ranked_rows.append(
+                {
+                    "listing_db_id": row.listing_id,
+                    "listing_identity": current_identity_map.get(
+                        row.listing_id, f"internal-{row.listing_id}"
+                    ),
+                    "score": row.score,
+                    "price": listing.price,
+                }
+            )
 
-    dominance_violations = sum(1 for row in sampled_rows if _dominance_ratio(row) > dominance_cap)
+    dominance_violation_rows = []
+    for row in sampled_rows:
+        dominance_ratio = _dominance_ratio(row)
+        if dominance_ratio > dominance_cap:
+            dominance_violation_rows.append(
+                {
+                    "listing_db_id": row.listing_id,
+                    "listing_identity": current_identity_map.get(
+                        row.listing_id, f"internal-{row.listing_id}"
+                    ),
+                    "dominance_ratio": dominance_ratio,
+                }
+            )
     scoring_sanity_pass = (
-        out_of_range_count == 0 and impossible_top_ranked == 0 and dominance_violations == 0
+        len(out_of_range_rows) == 0
+        and len(impossible_top_ranked_rows) == 0
+        and len(dominance_violation_rows) == 0
     )
     scoring_sanity_gate = {
         "status": "pass" if scoring_sanity_pass else "fail",
+        "violation_details": {
+            "out_of_range_rows": out_of_range_rows,
+            "impossible_top_ranked_rows": impossible_top_ranked_rows,
+            "dominance_violation_rows": dominance_violation_rows,
+        },
         "metrics": {
-            "out_of_range_count": out_of_range_count,
-            "impossible_top_ranked_count": impossible_top_ranked,
-            "dominance_violations": dominance_violations,
+            "out_of_range_count": len(out_of_range_rows),
+            "impossible_top_ranked_count": len(impossible_top_ranked_rows),
+            "dominance_violations": len(dominance_violation_rows),
         },
         "thresholds": {
             "score_min": score_min,
@@ -415,14 +458,36 @@ def run_scoring_evaluation(
         },
     }
 
-    missing_explanations = sum(1 for row in sampled_rows if not row.explanation)
-    score_math_mismatches = sum(1 for row in sampled_rows if not _score_math_consistent(row))
-    explainability_pass = missing_explanations == 0 and score_math_mismatches == 0
+    missing_explanation_rows = [
+        {
+            "listing_db_id": row.listing_id,
+            "listing_identity": current_identity_map.get(
+                row.listing_id, f"internal-{row.listing_id}"
+            ),
+        }
+        for row in sampled_rows
+        if not row.explanation
+    ]
+    score_math_mismatch_rows = [
+        {
+            "listing_db_id": row.listing_id,
+            "listing_identity": current_identity_map.get(
+                row.listing_id, f"internal-{row.listing_id}"
+            ),
+        }
+        for row in sampled_rows
+        if not _score_math_consistent(row)
+    ]
+    explainability_pass = len(missing_explanation_rows) == 0 and len(score_math_mismatch_rows) == 0
     explainability_gate = {
         "status": "pass" if explainability_pass else "fail",
+        "violation_details": {
+            "missing_explanation_rows": missing_explanation_rows,
+            "score_math_mismatch_rows": score_math_mismatch_rows,
+        },
         "metrics": {
-            "missing_explanations_top_n": missing_explanations,
-            "score_math_mismatches_top_n": score_math_mismatches,
+            "missing_explanations_top_n": len(missing_explanation_rows),
+            "score_math_mismatches_top_n": len(score_math_mismatch_rows),
         },
         "thresholds": {
             "required_top_n": top_n,
