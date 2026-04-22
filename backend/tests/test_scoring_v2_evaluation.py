@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import copy
+
 from app.models.ingestion_job import IngestionJob
 from app.models.listing import Listing
 from app.models.raw_listing import RawListing
 from app.models.score_result import ScoreResult
+from app.services import scoring_evaluation
 from app.services.scoring_evaluation import run_scoring_evaluation
 from sqlalchemy.orm import Session
 
@@ -120,6 +123,17 @@ def test_scoring_evaluation_promotes_when_all_gates_pass(db_session: Session) ->
     assert report["failed_gates"] == []
     assert report["warning_gates"] == []
     assert report["gates"]["stability"]["status"] == "pass"
+    stability = report["gates"]["stability"]["metrics"]
+    assert "segments" in stability
+    assert "top_band" in stability["segments"]
+    assert "middle_band" in stability["segments"]
+    assert "bottom_band" in stability["segments"]
+    assert "full_dataset" in stability
+    assert "thresholds" in stability["segments"]["top_band"]
+    assert "thresholds" in stability["segments"]["middle_band"]
+    assert "thresholds" in stability["segments"]["bottom_band"]
+    assert "median_abs_rank_shift" in stability["segments"]["top_band"]["metrics"]
+    assert "p90_rank_shift" in stability["segments"]["top_band"]["metrics"]
 
 
 def test_scoring_evaluation_reverts_when_stability_fails(db_session: Session) -> None:
@@ -152,3 +166,84 @@ def test_scoring_evaluation_marks_experimental_when_sample_too_small(
 
     assert report["decision"] == "experimental"
     assert "sample_size" in report["warning_gates"]
+
+
+def test_top_band_displacement_threshold_can_fail(db_session: Session, monkeypatch) -> None:
+    current_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
+    reference_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
+
+    base_config = scoring_evaluation._load_scoring_config()
+    strict_config = copy.deepcopy(base_config)
+    strict_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
+        "median_abs_rank_shift_max"
+    ] = 0
+    strict_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
+        "p90_rank_shift_max"
+    ] = 0
+    monkeypatch.setattr(scoring_evaluation, "_load_scoring_config", lambda: strict_config)
+
+    # Reversing top 20 introduces displacement while keeping enough overlap.
+    top_rows = (
+        db_session.query(ScoreResult)
+        .filter(ScoreResult.job_id == current_job.id)
+        .order_by(ScoreResult.score.desc(), ScoreResult.listing_id.asc())
+        .limit(20)
+        .all()
+    )
+    for idx, row in enumerate(top_rows):
+        row.score = 99.99 - (19 - idx)
+    db_session.commit()
+
+    report = run_scoring_evaluation(
+        db_session,
+        job_id=current_job.id,
+        reference_job_id=reference_job.id,
+        top_n=20,
+    )
+    assert report["decision"] == "revert"
+    assert "stability" in report["failed_gates"]
+
+
+def test_full_dataset_displacement_warning_is_context_only(
+    db_session: Session, monkeypatch
+) -> None:
+    current_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
+    reference_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
+
+    base_config = scoring_evaluation._load_scoring_config()
+    warn_config = copy.deepcopy(base_config)
+    warn_config["evaluation_thresholds"]["stability"]["full_dataset"][
+        "median_abs_rank_shift_warn_max"
+    ] = -1
+    warn_config["evaluation_thresholds"]["stability"]["full_dataset"][
+        "p90_rank_shift_warn_max"
+    ] = -1
+    # Keep top thresholds permissive so warning is context-only.
+    warn_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
+        "median_abs_rank_shift_max"
+    ] = 10_000
+    warn_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
+        "p90_rank_shift_max"
+    ] = 10_000
+    monkeypatch.setattr(scoring_evaluation, "_load_scoring_config", lambda: warn_config)
+
+    # Introduce non-top ordering movement so full-dataset displacement becomes non-zero.
+    ordered_rows = (
+        db_session.query(ScoreResult)
+        .filter(ScoreResult.job_id == current_job.id)
+        .order_by(ScoreResult.score.desc(), ScoreResult.listing_id.asc())
+        .all()
+    )
+    ordered_rows[60].score, ordered_rows[80].score = ordered_rows[80].score, ordered_rows[60].score
+    db_session.commit()
+
+    report = run_scoring_evaluation(
+        db_session,
+        job_id=current_job.id,
+        reference_job_id=reference_job.id,
+        top_n=20,
+    )
+    assert report["decision"] == "experimental"
+    assert "stability_full_dataset" in report["warning_gates"]
+    assert report["gates"]["stability"]["metrics"]["full_dataset"]["status"] == "warn"
+    assert "stability" not in report["failed_gates"]
