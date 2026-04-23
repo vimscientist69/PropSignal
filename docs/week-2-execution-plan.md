@@ -65,16 +65,23 @@ What this means (simple):
 - Stability checks tell us whether ranking behavior is reliable enough to ship.
 
 Implementation steps:
-1. Add top-N overlap metric:
-   - compute Jaccard overlap between current top-20 and reference top-20
-   - compare against threshold (default `top20_jaccard_min`)
-2. Add rank correlation metric:
-   - compute full-list rank correlation vs reference ranking
-   - compare against threshold (default `rank_correlation_min`)
-3. Add weight perturbation sensitivity:
+1. Add segment overlap + ordering metrics:
+   - compute Jaccard overlap and rank correlation for:
+     - `top_band` (critical)
+     - `middle_band` (warning)
+     - `bottom_band` (warning)
+   - compare against config thresholds under `evaluation_thresholds.stability.segments`
+2. Add rank displacement metrics (global-rank based):
+   - compute `median_abs_rank_shift` and `p90_rank_shift` for shared listings
+   - compute normalized forms `median_abs_rank_shift_pct` and `p90_rank_shift_pct`
+   - gate on normalized (`*_pct`) thresholds so behavior scales across dataset sizes
+3. Add weight perturbation sensitivity for top band:
    - run controlled +/-5% to +/-10% weight perturbation experiments
-   - measure whether top ranking collapses or shifts beyond acceptable limits
-4. Store all stability metrics in the same evaluation artifact for auditability.
+   - measure whether top ranking collapses beyond acceptable limits
+4. Add full-dataset displacement context:
+   - compute global displacement metrics for full dataset
+   - treat full-dataset displacement breaches as warning-level context
+5. Store all stability metrics in the same evaluation artifact for auditability.
 
 ### Phase 3.3 Release Decision Output (promote/revert/experimental)
 
@@ -116,9 +123,9 @@ Create/modify these files during implementation:
    - Modify: `config/scoring.yaml`
    - Add/confirm:
      - data quality thresholds (valid/duplicate/null rate)
-     - stability thresholds (top-N overlap, rank correlation)
+     - stability thresholds (segment overlap, rank correlation, displacement)
      - sensitivity thresholds (acceptable perturbation drift)
-     - gate severity mapping (critical vs warning)
+     - gate severity mapping (critical `top_band` vs warning-level non-top/full-dataset)
 
 4. **CLI entrypoint (CLI-first workflow)**
    - Modify: `backend/app/cli.py`
@@ -134,7 +141,7 @@ Create/modify these files during implementation:
      - `backend/tests/test_scoring_service.py`
      - `backend/tests/test_scoring_v2_evaluation.py` (new)
    - Cover:
-     - metric correctness for top-N overlap and rank correlation
+     - metric correctness for segment overlap/correlation/displacement
      - perturbation sensitivity behavior for stable vs unstable cases
      - decision classification (`promote`/`revert`/`experimental`)
      - artifact shape and required fields
