@@ -1,11 +1,14 @@
 # Week 2 Interface Contract
 
-This document freezes the Week 2 output interface expectations before implementation work proceeds.
+This document defines Week 2 interface contracts only.
 
 It defines:
 - `advanced_v2` scoring output contract,
 - structured explanation payload contract,
 - promotion threshold references.
+
+Canonical Week 2 scope and execution order live in:
+- `docs/week-2-execution-plan.md`
 
 ---
 
@@ -108,9 +111,5 @@ Expected progression:
 
 ## 5) Scope Guardrail
 
-This contract is only for Week 2 scoring and reasoning outputs.
-
-It intentionally excludes:
-- Week 3 dashboard/API strategy workflow contracts,
-- multi-provider external integrations,
-- default-on LLM scoring influence.
+Scope is intentionally not restated here.
+Use `docs/week-2-execution-plan.md` as the single source of truth for Week 2 scope boundaries.
