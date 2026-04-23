@@ -199,10 +199,13 @@ Checkpoint:
 
 ## Phase 5: Evaluation/stability gates (Day 4)
 
-1. Implement top-N overlap and rank correlation metrics.
-2. Implement perturbation sensitivity checks.
-3. Produce clear go/no-go decision artifact per run.
-4. Add tests for metric calculation correctness.
+1. Implement segment stability metrics:
+   - top/middle/bottom overlap + rank correlation checks
+2. Implement global-rank displacement diagnostics:
+   - absolute metrics plus normalized `*_pct` thresholds for gating
+3. Implement top-band perturbation sensitivity checks.
+4. Produce clear go/no-go decision artifact per run.
+5. Add tests for metric calculation correctness.
 
 Checkpoint:
 - scoring run outputs promotion recommendation deterministically.

@@ -76,8 +76,13 @@ Phase 0 freeze references these default thresholds from:
 - `config/scoring.yaml` (`evaluation_thresholds`)
 
 Current defaults:
-- `top20_jaccard_min = 0.70`
-- `rank_correlation_min = 0.80`
+- `evaluation_thresholds.stability.segments.top_band.jaccard_min = 0.70`
+- `evaluation_thresholds.stability.segments.top_band.rank_correlation_min = 0.80`
+- `evaluation_thresholds.stability.segments.top_band.perturbation_overlap_min = 0.60`
+- `evaluation_thresholds.stability.segments.top_band.median_abs_rank_shift_pct_max = 0.15`
+- `evaluation_thresholds.stability.segments.top_band.p90_rank_shift_pct_max = 0.60`
+- `evaluation_thresholds.stability.full_dataset.median_abs_rank_shift_pct_warn_max = 0.35`
+- `evaluation_thresholds.stability.full_dataset.p90_rank_shift_pct_warn_max = 0.80`
 
 These thresholds gate promote/revert decisions for Week 2 scoring changes.
 

@@ -168,7 +168,6 @@ def test_scoring_evaluation_marks_experimental_when_sample_too_small(
     assert "sample_size" in report["warning_gates"]
 
 
-# todo: verify logic is correct
 def test_top_band_displacement_threshold_can_fail(db_session: Session, monkeypatch) -> None:
     current_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
     reference_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
@@ -204,8 +203,6 @@ def test_top_band_displacement_threshold_can_fail(db_session: Session, monkeypat
     assert report["decision"] == "revert"
     assert "stability" in report["failed_gates"]
 
-
-# todo: verify logic is correct
 def test_full_dataset_displacement_warning_is_context_only(
     db_session: Session, monkeypatch
 ) -> None:
@@ -249,3 +246,102 @@ def test_full_dataset_displacement_warning_is_context_only(
     assert "stability_full_dataset" in report["warning_gates"]
     assert report["gates"]["stability"]["metrics"]["full_dataset"]["status"] == "warn"
     assert "stability" not in report["failed_gates"]
+
+
+def test_rank_displacement_metrics_computes_expected_values() -> None:
+    current_ids = ["A", "B", "C", "D"]
+    reference_ids = ["B", "A", "C", "E"]
+    current_global_rank = {
+        "A": 1,
+        "B": 2,
+        "C": 3,
+        "D": 4,
+        "X": 5,
+    }
+    reference_global_rank = {
+        "B": 1,
+        "A": 2,
+        "C": 4,
+        "E": 3,
+        "X": 5,
+    }
+
+    metrics = scoring_evaluation._rank_displacement_metrics(
+        current_ids=current_ids,
+        reference_ids=reference_ids,
+        current_global_rank=current_global_rank,
+        reference_global_rank=reference_global_rank,
+    )
+
+    # Shared IDs are A, B, C -> shifts are [1, 1, 1].
+    assert metrics["intersection_count"] == 3.0
+    assert metrics["median_abs_rank_shift"] == 1.0
+    assert metrics["p90_rank_shift"] == 1.0
+    # rank_span = max(5, 5) - 1 = 4 => each pct shift is 1/4 = 0.25
+    assert metrics["median_abs_rank_shift_pct"] == 0.25
+    assert metrics["p90_rank_shift_pct"] == 0.25
+
+
+def test_top_band_perturbation_threshold_can_fail(db_session: Session, monkeypatch) -> None:
+    current_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
+    reference_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
+
+    base_config = scoring_evaluation._load_scoring_config()
+    strict_config = copy.deepcopy(base_config)
+    strict_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
+        "perturbation_overlap_min"
+    ] = 0.90
+    monkeypatch.setattr(scoring_evaluation, "_load_scoring_config", lambda: strict_config)
+    monkeypatch.setattr(
+        scoring_evaluation,
+        "_compute_perturbation_overlap",
+        lambda _rows, top_n, deltas: (
+            0.50,
+            [{"signal": "price_vs_comp", "delta": 0.10, "top_n_jaccard": 0.50}],
+        ),
+    )
+
+    report = run_scoring_evaluation(
+        db_session,
+        job_id=current_job.id,
+        reference_job_id=reference_job.id,
+        top_n=20,
+    )
+    assert report["decision"] == "revert"
+    assert "stability" in report["failed_gates"]
+    top_band = report["gates"]["stability"]["metrics"]["segments"]["top_band"]
+    assert top_band["status"] == "fail"
+    assert any(
+        check.startswith("perturbation_overlap_below_min:")
+        for check in top_band["violation_details"]["failed_checks"]
+    )
+
+
+def test_top_band_perturbation_threshold_can_pass(db_session: Session, monkeypatch) -> None:
+    current_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
+    reference_job = _seed_scored_job(db_session, sample_size=120, score_order_desc=True)
+
+    base_config = scoring_evaluation._load_scoring_config()
+    strict_config = copy.deepcopy(base_config)
+    strict_config["evaluation_thresholds"]["stability"]["segments"]["top_band"][
+        "perturbation_overlap_min"
+    ] = 0.90
+    monkeypatch.setattr(scoring_evaluation, "_load_scoring_config", lambda: strict_config)
+    monkeypatch.setattr(
+        scoring_evaluation,
+        "_compute_perturbation_overlap",
+        lambda _rows, top_n, deltas: (
+            0.95,
+            [{"signal": "price_vs_comp", "delta": 0.10, "top_n_jaccard": 0.95}],
+        ),
+    )
+
+    report = run_scoring_evaluation(
+        db_session,
+        job_id=current_job.id,
+        reference_job_id=reference_job.id,
+        top_n=20,
+    )
+    assert report["decision"] == "promote"
+    top_band = report["gates"]["stability"]["metrics"]["segments"]["top_band"]
+    assert top_band["status"] == "pass"

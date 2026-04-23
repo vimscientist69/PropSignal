@@ -70,14 +70,20 @@ Suggested defaults (adjust later):
 
 ## 4.3 Stability gates
 
-- top-N overlap vs previous version/run
-- rank correlation across full set
-- controlled sensitivity under weight perturbation (+/-5 to 10%)
+- segment overlap vs previous version/run:
+  - top band (critical), middle band (warn), bottom band (warn)
+- rank correlation per band
+- global-rank displacement tracking:
+  - median abs rank shift
+  - p90 rank shift (tail movement)
+- normalized displacement thresholds (`*_pct`) for dataset-size-aware gating
+- controlled sensitivity under top-band weight perturbation (+/-5 to 10%)
 
 Suggested defaults:
-- top20_jaccard >= 0.70
-- rank correlation >= 0.80
-- no severe rank collapse from minor weight changes
+- top-band jaccard >= 0.70
+- top-band rank correlation >= 0.80
+- top-band perturbation overlap >= 0.60
+- non-top/full-dataset displacement threshold breaches are warning-level context
 
 ## 4.4 Explainability gates
 
