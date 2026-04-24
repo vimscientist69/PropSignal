@@ -79,7 +79,9 @@ def run_performance_baseline(
 
             validation_result, validate_s = _timed(run_dataset_validation, db, ingestion_job.id)
             result["durations_s"]["validate_dataset"] = validate_s
-            result["artifacts"]["validation_report_path"] = validation_result.report_path
+            result["artifacts"]["validation_report_path"] = str(
+                Path(validation_result.report_path).resolve()
+            )
             validate_durations.append(validate_s)
 
             evaluation_report, evaluate_s = _timed(
@@ -90,7 +92,11 @@ def run_performance_baseline(
                 top_n=top_n,
             )
             result["durations_s"]["evaluate_scoring"] = evaluate_s
-            result["artifacts"]["evaluation_report_path"] = evaluation_report.get("report_path")
+            evaluation_report_path = evaluation_report.get("report_path")
+            if evaluation_report_path is not None:
+                result["artifacts"]["evaluation_report_path"] = str(
+                    Path(evaluation_report_path).resolve()
+                )
             evaluate_durations.append(evaluate_s)
 
             result["status"] = "pass"
@@ -187,6 +193,6 @@ def run_performance_baseline(
     summary_path = base_dir / "baseline_summary.md"
     summary_path.write_text("\n".join(summary_lines) + "\n", encoding="utf-8")
 
-    metrics["metrics_path"] = str(metrics_path)
-    metrics["summary_path"] = str(summary_path)
+    metrics["metrics_path"] = str(metrics_path.resolve())
+    metrics["summary_path"] = str(summary_path.resolve())
     return metrics
