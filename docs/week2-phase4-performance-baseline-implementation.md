@@ -203,3 +203,42 @@ Phase 4 is considered done when:
    - SLO met/missed/deferred
    - unresolved bottlenecks
 5. Follow-up actions for Week 3/4 are explicitly captured.
+
+---
+
+## 11) Week 3/4 Handoff: Required Updates (Do Not Skip)
+
+When ranking/list/detail APIs are implemented in Week 3/4, update the baseline implementation immediately.
+
+### Files to update
+
+1. `backend/app/services/performance_baseline.py`
+2. `backend/app/cli.py`
+3. `backend/tests/test_performance_baseline.py`
+4. `docs/mvp-performance-plan.md` (if SLOs change)
+5. `docs/week2-phase4-performance-baseline-implementation.md` (mark Week 3/4 handoff completed)
+
+### Exact required changes
+
+1. Replace API SLO placeholders from deferred to measured:
+   - `ranking_list_api_p95_ms`
+   - `filtered_ranking_api_p95_ms`
+   - `listing_detail_api_p95_ms`
+2. Add actual API benchmark execution in `run_performance_baseline`:
+   - call ranking/list/detail endpoints (or dedicated benchmark client),
+   - collect endpoint latency samples,
+   - compute p50/p95 for each endpoint.
+3. Remove API SLOs from `deferred` classification once benchmark harness exists.
+4. Add dataset-size context to artifacts:
+   - `records_total`
+   - `records_valid`
+   - throughput fields (for example rows/sec) for score/validation stages.
+5. Extend summary output to include API p95 result lines and pass/fail status.
+6. Add tests that assert:
+   - API latency metrics are present in `aggregate`,
+   - API SLOs are assessed under `met`/`missed` (not always deferred),
+   - dataset-size and throughput fields are written.
+
+### Completion signal
+
+Week 3/4 handoff is complete only when `baseline_metrics.json` contains measured API latency stats and API SLOs are no longer unconditionally deferred.

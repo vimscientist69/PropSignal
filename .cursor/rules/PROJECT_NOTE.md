@@ -506,6 +506,10 @@ Turn PropSignal into a **configurable investor decision tool** where users can:
   - pagination and top-N optimized retrieval
   - asynchronous processing for heavy jobs (ingestion/scoring/validation)
   - freshness metadata (`last_ingested_at`, `last_scored_at`, `model/profile version`)
+ - Required performance baseline handoff update (more info in `week2-phase4-performance-baseline-implementation.md`):
+   - after ranking/list/detail APIs are available, update `backend/app/services/performance_baseline.py`
+     to measure API latency and move API SLOs from `deferred` to evaluated (`met`/`missed`)
+   - update `backend/tests/test_performance_baseline.py` to enforce this behavior
 
 #### **3.3 CLI revamp to mirror backend/dashboard capability**
 
@@ -586,6 +590,9 @@ Harden the system for real-world use by running structured validation on real da
 - Optimize bottlenecks (indexes, pagination paths, batch operations).
 - Complete deployment checklist (env config, observability, rollback path, smoke tests).
 - Use `docs/mvp-performance-plan.md` as the implementation checklist and SLO reference.
+- Ensure performance baseline artifacts include dataset-size context and throughput metrics:
+  - `records_total`, `records_valid`
+  - stage throughput (rows/sec) for scoring and validation
 
 #### **4.5 Documentation pack (operator + analyst guidance)**
 

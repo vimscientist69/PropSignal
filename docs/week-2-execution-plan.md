@@ -1,5 +1,7 @@
 # Next Phase Execution Plan (Implementation Order)
 
+> TODO (Phase 4 follow-up): include dataset-size context in performance baseline artifacts (`records_total`, `records_valid`, and rows/sec throughput) so duration comparisons are meaningful across different dataset sizes.
+
 This is the practical execution sequence for the next feature branch, optimized for speed and low risk.
 
 ## Scope for This Branch:
