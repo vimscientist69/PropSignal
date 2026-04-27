@@ -1,11 +1,5 @@
 # 🏠 Real Estate Deal Intelligence Platform (Full System)
 
-backend/output/evaluations/job-21-ref-20-20260424131807/scoring_evaluation_2026-04-24_13-18-07Z.json
-
-For some reason it is failing, with minimal config changes. phase5_week2_validation_decision_2026-04-24_rerun_after_enum_fix.md
-
-debug why this is the case.
-
 ## 🎯 Goal
 
 Build a **production-grade data intelligence system** that transforms large-scale real estate listing datasets into **high-quality investment opportunities** using advanced scoring, analytics, and a clean, interactive dashboard.
@@ -459,6 +453,16 @@ Ship an ROI-first, explainable scoring system (`advanced_v2`) with deterministic
   - `top_band` (critical), `middle_band`/`bottom_band` (warning),
   - full-dataset displacement context,
   - relative displacement thresholds (`*_pct`) for dataset-size-aware gating.
+
+### **Week 2 Completion Status (Latest)**
+
+- Phase 5 rerun after enum + evaluation identity fixes completed successfully.
+- Final validation decision: `promote`.
+- Frozen Week 2 scoring profile values:
+  - `advanced_v2.weights.price_vs_comp = 0.29`
+  - `advanced_v2.weights.roi_proxy = 0.21`
+- Decision artifact:
+  - `backend/output/evaluations/phase5_week2_validation_decision_2026-04-27_post_enum_eval_fix.md`
 
 ---
 
