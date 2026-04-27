@@ -1,11 +1,14 @@
 # Week 2 Interface Contract
 
-This document freezes the Week 2 output interface expectations before implementation work proceeds.
+This document defines Week 2 interface contracts only.
 
 It defines:
 - `advanced_v2` scoring output contract,
 - structured explanation payload contract,
 - promotion threshold references.
+
+Canonical Week 2 scope and execution order live in:
+- `docs/week-2-execution-plan.md`
 
 ---
 
@@ -76,8 +79,13 @@ Phase 0 freeze references these default thresholds from:
 - `config/scoring.yaml` (`evaluation_thresholds`)
 
 Current defaults:
-- `top20_jaccard_min = 0.70`
-- `rank_correlation_min = 0.80`
+- `evaluation_thresholds.stability.segments.top_band.jaccard_min = 0.70`
+- `evaluation_thresholds.stability.segments.top_band.rank_correlation_min = 0.80`
+- `evaluation_thresholds.stability.segments.top_band.perturbation_overlap_min = 0.60`
+- `evaluation_thresholds.stability.segments.top_band.median_abs_rank_shift_pct_max = 0.15`
+- `evaluation_thresholds.stability.segments.top_band.p90_rank_shift_pct_max = 0.60`
+- `evaluation_thresholds.stability.full_dataset.median_abs_rank_shift_pct_warn_max = 0.35`
+- `evaluation_thresholds.stability.full_dataset.p90_rank_shift_pct_warn_max = 0.80`
 
 These thresholds gate promote/revert decisions for Week 2 scoring changes.
 
@@ -103,9 +111,5 @@ Expected progression:
 
 ## 5) Scope Guardrail
 
-This contract is only for Week 2 scoring and reasoning outputs.
-
-It intentionally excludes:
-- Week 3 dashboard/API strategy workflow contracts,
-- multi-provider external integrations,
-- default-on LLM scoring influence.
+Scope is intentionally not restated here.
+Use `docs/week-2-execution-plan.md` as the single source of truth for Week 2 scope boundaries.

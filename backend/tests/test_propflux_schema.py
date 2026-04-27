@@ -61,3 +61,27 @@ def test_partial_validation_allows_known_propflux_optional_fields() -> None:
 
     assert len(valid) == 1
     assert len(invalid) == 0
+
+
+def test_partial_validation_allows_unknown_extra_fields() -> None:
+    payload = [
+        {
+            "title": "4 Bedroom House in Welbedacht",
+            "price": 6250000.0,
+            "location": "Welbedacht, Knysna",
+            "bedrooms": 4,
+            "bathrooms": 4.0,
+            "property_type": "House",
+            "description": "Immaculate home with views",
+            "listing_id": "T5440103",
+            "source_site": "privateproperty",
+            # Unknown/forward-compatible fields from evolving upstream payloads.
+            "job_id": "72e50122",
+            "new_marketing_flag": True,
+            "custom_notes": "future field should not invalidate record",
+        }
+    ]
+    valid, invalid = validate_propflux_payload_partial(payload)
+
+    assert len(valid) == 1
+    assert len(invalid) == 0

@@ -1,16 +1,13 @@
 from __future__ import annotations
 
 import argparse
-from datetime import UTC, datetime
 import html
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from matplotlib import pyplot as plt
 import numpy as np
 import plotly.graph_objects as go
-from sqlalchemy import select
-
 from app.db.session import SessionLocal
 from app.models.listing import Listing
 from app.models.score_result import ScoreResult
@@ -22,6 +19,8 @@ from app.services.scoring import (
     _load_scoring_config,
     _resolve_comp_context,
 )
+from matplotlib import pyplot as plt
+from sqlalchemy import select
 
 
 def _load_top_listings(job_id: int, limit: int) -> list[dict[str, Any]]:
@@ -91,9 +90,7 @@ def _compute_audit_inputs(job_id: int, records: list[dict[str, Any]]) -> dict[in
     advanced_v2_cfg = config.get("advanced_v2", {})
     comps_cfg = advanced_v2_cfg.get("comps", {})
     roi_cfg = advanced_v2_cfg.get("roi", {})
-    fallback_order = list(
-        comps_cfg.get("fallback_order", ["suburb", "city", "province", "global"])
-    )
+    fallback_order = list(comps_cfg.get("fallback_order", ["suburb", "city", "province", "global"]))
     include_bedrooms = bool(comps_cfg.get("include_bedrooms", True))
     include_bathrooms = bool(comps_cfg.get("include_bathrooms", True))
     minimum_cohort_size = int(comps_cfg.get("minimum_cohort_size", 12))
@@ -103,9 +100,14 @@ def _compute_audit_inputs(job_id: int, records: list[dict[str, Any]]) -> dict[in
         all_listings = db.scalars(select(Listing).where(Listing.job_id == job_id)).all()
 
     comp_index = _build_comp_index(
-        all_listings, fallback_order, include_bedrooms=include_bedrooms, include_bathrooms=include_bathrooms
+        all_listings,
+        fallback_order,
+        include_bedrooms=include_bedrooms,
+        include_bathrooms=include_bathrooms,
     )
-    listing_map = {int(listing.id): listing for listing in all_listings if int(listing.id) in selected_ids}
+    listing_map = {
+        int(listing.id): listing for listing in all_listings if int(listing.id) in selected_ids
+    }
     now_date = datetime.now(UTC).date()
     details: dict[int, dict[str, Any]] = {}
 
@@ -132,7 +134,9 @@ def _compute_audit_inputs(job_id: int, records: list[dict[str, Any]]) -> dict[in
             else None
         )
         days_on_market = (
-            max(0, (now_date - listing.date_posted).days) if listing.date_posted is not None else None
+            max(0, (now_date - listing.date_posted).days)
+            if listing.date_posted is not None
+            else None
         )
         confidence = _confidence_signal(listing)
         feature_value = _feature_density_signal(listing)
@@ -161,7 +165,9 @@ def _compute_audit_inputs(job_id: int, records: list[dict[str, Any]]) -> dict[in
                 "fallback_penalty": round(float(fallback_penalty), 4),
             },
             "size_vs_comp_inputs": {
-                "listing_floor_size": float(listing.floor_size) if listing.floor_size is not None else None,
+                "listing_floor_size": (
+                    float(listing.floor_size) if listing.floor_size is not None else None
+                ),
                 "listing_ppsqm": listing_ppsqm,
                 "comp_median_ppsqm": comp_median_ppsqm,
                 "comp_level": comp_level,
@@ -246,15 +252,23 @@ def _build_details_table_html(records: list[dict[str, Any]]) -> str:
             "</tr>"
         )
 
-    return (
-        "<h2>Metric Input Audit Table</h2>"
-        "<p>Inputs below are the listing datapoints and intermediate values used for metric calculations.</p>"
-        "<div style='overflow-x:auto;'>"
-        "<table border='1' cellspacing='0' cellpadding='6' style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;'>"
-        f"<thead><tr>{header_html}</tr></thead>"
-        f"<tbody>{''.join(body_rows)}</tbody>"
-        "</table>"
-        "</div>"
+    return "".join(
+        [
+            "<h2>Metric Input Audit Table</h2>",
+            (
+                "<p>Inputs below are the listing datapoints and intermediate values "
+                "used for metric calculations.</p>"
+            ),
+            "<div style='overflow-x:auto;'>",
+            (
+                "<table border='1' cellspacing='0' cellpadding='6' "
+                "style='border-collapse:collapse;font-family:Arial,sans-serif;font-size:12px;'>"
+            ),
+            f"<thead><tr>{header_html}</tr></thead>",
+            f"<tbody>{''.join(body_rows)}</tbody>",
+            "</table>",
+            "</div>",
+        ]
     )
 
 
@@ -320,14 +334,22 @@ def _build_interactive_chart(
     )
     details_html = _build_details_table_html(records)
     chart_html = fig.to_html(include_plotlyjs="cdn", full_html=False)
-    full_html = (
-        "<!DOCTYPE html><html><head><meta charset='utf-8'><title>PropSignal Top 5 Audit</title></head>"
-        "<body style='margin:18px;font-family:Arial,sans-serif;'>"
-        "<h1>PropSignal Human Audit: Top 5 Listings</h1>"
-        "<p>Interactive chart + metric input audit table for explanation concordance checks.</p>"
-        f"{chart_html}"
-        f"{details_html}"
-        "</body></html>"
+    full_html = "".join(
+        [
+            (
+                "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                "<title>PropSignal Top 5 Audit</title></head>"
+            ),
+            "<body style='margin:18px;font-family:Arial,sans-serif;'>",
+            "<h1>PropSignal Human Audit: Top 5 Listings</h1>",
+            (
+                "<p>Interactive chart + metric input audit table "
+                "for explanation concordance checks.</p>"
+            ),
+            f"{chart_html}",
+            f"{details_html}",
+            "</body></html>",
+        ]
     )
     output_html.write_text(full_html, encoding="utf-8")
 

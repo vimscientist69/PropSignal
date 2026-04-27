@@ -73,9 +73,37 @@ DEFAULT_SCORING_CONFIG: dict[str, Any] = {
             "high_score_cutoff": 80.0,
         },
         "stability": {
-            "top20_jaccard_min": 0.7,
-            "rank_correlation_min": 0.8,
-            "perturbation_overlap_min": 0.6,
+            "segments": {
+                "top_band": {
+                    "mode": "top_n",
+                    "top_n": 20,
+                    "jaccard_min": 0.7,
+                    "rank_correlation_min": 0.8,
+                    "perturbation_overlap_min": 0.6,
+                    "median_abs_rank_shift_pct_max": 0.15,
+                    "p90_rank_shift_pct_max": 0.60,
+                },
+                "middle_band": {
+                    "start_pct": 0.45,
+                    "end_pct": 0.60,
+                    "jaccard_warn_min": 0.3,
+                    "rank_correlation_warn_min": 0.5,
+                    "median_abs_rank_shift_pct_warn_max": 0.45,
+                    "p90_rank_shift_pct_warn_max": 0.85,
+                },
+                "bottom_band": {
+                    "start_pct": 0.85,
+                    "end_pct": 1.00,
+                    "jaccard_warn_min": 0.25,
+                    "rank_correlation_warn_min": 0.4,
+                    "median_abs_rank_shift_pct_warn_max": 0.50,
+                    "p90_rank_shift_pct_warn_max": 0.90,
+                },
+            },
+            "full_dataset": {
+                "median_abs_rank_shift_pct_warn_max": 0.35,
+                "p90_rank_shift_pct_warn_max": 0.80,
+            },
         },
         "decision": {
             "minimum_sample_for_promote": 100,

@@ -66,3 +66,31 @@ def test_ingestion_allows_land_records_with_missing_bedbath(
     assert listing is not None
     assert listing.bedrooms == 0
     assert listing.bathrooms == 0.0
+
+
+def test_ingestion_allows_unknown_extra_fields(db_session: Session, tmp_path: Path) -> None:
+    payload = [
+        {
+            "title": "4 Bedroom House in Welbedacht",
+            "price": 6250000.0,
+            "location": "Welbedacht, Knysna",
+            "bedrooms": 4,
+            "bathrooms": 4.0,
+            "property_type": "House",
+            "description": "Immaculate home with views",
+            "listing_id": "T5440103",
+            "source_site": "privateproperty",
+            "job_id": "72e50122",
+            "new_marketing_flag": True,
+        }
+    ]
+    input_file = tmp_path / "extra_fields_listing.json"
+    input_file.write_text(json.dumps(payload), encoding="utf-8")
+
+    job = ingest_propflux_file(db_session, input_file)
+    assert job.records_valid == 1
+    assert job.records_invalid == 0
+
+    listing = db_session.scalar(select(Listing))
+    assert listing is not None
+    assert listing.title == "4 Bedroom House in Welbedacht"

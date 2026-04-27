@@ -7,13 +7,13 @@ This file is the single reference for:
 
 ## Snapshot
 
-- Current phase: transition from Week 1 completion to Week 2 implementation.
-- Branch readiness: documentation and planning are in place for next-phase execution.
-- Primary next objective: implement Week 2 advanced scoring and explanation payloads.
+- Current phase: Week 2 implementation completed (including Phase 5 validation cycle).
+- Branch readiness: Week 2 outputs are production-candidate and frozen pending Week 3 scope.
+- Primary next objective: begin Week 3 strategy-driven API/CLI/dashboard implementation.
 
 ## Completion Checklist
 
-## Completed (foundation)
+## Completed (foundation + Week 2)
 
 - [x] Project scaffolding, dev scripts, and CI baseline
 - [x] Docker Compose + PostgreSQL setup
@@ -23,16 +23,18 @@ This file is the single reference for:
 - [x] Dataset validation service and CLI command (`validate-dataset`)
 - [x] Core unit/integration test coverage for ingestion, scoring, and dataset validation
 - [x] Week 2 strategy and architecture documentation package
+- [x] Week 2 advanced scoring (`advanced_v2`) with micro-comps + ROI proxy
+- [x] Week 2 structured reasoning payload in scored output
+- [x] Week 2 evaluation gates (`promote`/`revert`/`experimental`) and CLI integration
+- [x] Week 2 segment-based stability checks with relative displacement thresholds
+- [x] Week 2 Phase 4 performance baseline command and artifacts
+- [x] Week 2 Phase 5 validation cycle completed with final promoted profile
 
 ## Planned, not implemented yet
 
-- [ ] Week 2 advanced scoring (`advanced_v2`) with micro-comps
-- [ ] Week 2 ROI proxy (yield + transaction costs)
-- [ ] Week 2 structured reasoning payload in scored output
-- [ ] Week 2 analytics quality/stability checks
-- [ ] Week 2 optional LLM enrichment prototype (gated)
 - [ ] Week 3 strategy-driven ranking API/CLI/dashboard functionality
 - [ ] Week 4 full validation/tuning/release hardening loop
+- [ ] Week 2 optional LLM enrichment prototype (gated)
 
 ## Deferred/optional
 
@@ -40,18 +42,18 @@ This file is the single reference for:
 - [ ] Heavy macro/geospatial modeling
 - [ ] PDF export (if not required for MVP release)
 
-## Next Feature Branch Kickoff Checklist
+## Next Feature Branch Kickoff Checklist (Week 3)
 
 Use this immediately when starting the next branch:
 
-1. Confirm scope: Week 2 must-ship only (do not mix Week 3 UI/API overhaul work).
-2. Define `advanced_v2` signal contract and output schema.
-3. Implement micro-comps computation with safe fallbacks and confidence penalties.
-4. Implement ROI proxy signals with deterministic defaults first.
-5. Add structured reasoning payload persistence + tests.
-6. Add evaluation gates from `docs/evaluation-review-protocol.md`.
-7. Run manual sample review and log results.
-8. Merge only if promotion thresholds pass.
+1. Confirm Week 3 scope: strategy-driven API/CLI/dashboard only.
+2. Keep Week 2 scoring profile as baseline:
+   - `advanced_v2.weights.price_vs_comp = 0.29`
+   - `advanced_v2.weights.roi_proxy = 0.21`
+3. Build ranking/list/detail API endpoints and aligned CLI workflow.
+4. Implement Week 3 performance handoff items from Phase 4 baseline docs.
+5. Preserve Week 2 evaluation contracts while expanding strategy surfaces.
+6. Run regression checks against Week 2 decision artifact before merging.
 
 ## Branch Scope Guardrail (Important)
 
@@ -66,3 +68,4 @@ Use this immediately when starting the next branch:
 - Evaluation protocol: `docs/evaluation-review-protocol.md`
 - Principal audit: `docs/project-note-principal-audit.md`
 - MVP performance plan: `docs/mvp-performance-plan.md`
+- Week 2 final decision (post enum/eval fix): `backend/output/evaluations/phase5_week2_validation_decision_2026-04-27_post_enum_eval_fix.md`

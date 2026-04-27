@@ -1,13 +1,10 @@
 # Week 2 Implementation Playbook
 
-This is the single Week 2 implementation document that combines:
-- plain-language intent (why each feature matters),
-- code-level change map (what files to change),
-- chronological execution order (how to implement safely).
+This document is an implementation companion for Week 2.
+It should not be used as the primary scope definition.
 
-It merges and supersedes the intent of:
+Canonical Week 2 scope and sequencing live in:
 - `docs/week-2-execution-plan.md`
-- `docs/week2-advanced-scoring-explained.md`
 
 ---
 
@@ -23,22 +20,13 @@ Do **not** include Week 3 dashboard/API strategy UX revamp in this branch.
 
 ---
 
-## 2) Scope (In / Out)
+## 2) Scope Reference
 
-## In scope
-
-- Advanced scoring service (`advanced_v2`)
-- Micro-comps signals with safe fallback
-- ROI proxy signals (deterministic baseline)
-- Structured reasoning payload
-- Evaluation/stability gates and promotion decision output
-- MVP performance safeguards for Week 2 query/compute paths
-
-## Out of scope (for this branch)
-
-- Full strategy-driven dashboard workflows
-- Multi-provider external integrations
-- Default-on LLM scoring influence (LLM remains optional/flagged)
+Scope is intentionally not duplicated here.
+Use `docs/week-2-execution-plan.md` as the single source of truth for:
+- in-scope vs out-of-scope boundaries,
+- phase ordering,
+- done criteria.
 
 ---
 
@@ -199,10 +187,13 @@ Checkpoint:
 
 ## Phase 5: Evaluation/stability gates (Day 4)
 
-1. Implement top-N overlap and rank correlation metrics.
-2. Implement perturbation sensitivity checks.
-3. Produce clear go/no-go decision artifact per run.
-4. Add tests for metric calculation correctness.
+1. Implement segment stability metrics:
+   - top/middle/bottom overlap + rank correlation checks
+2. Implement global-rank displacement diagnostics:
+   - absolute metrics plus normalized `*_pct` thresholds for gating
+3. Implement top-band perturbation sensitivity checks.
+4. Produce clear go/no-go decision artifact per run.
+5. Add tests for metric calculation correctness.
 
 Checkpoint:
 - scoring run outputs promotion recommendation deterministically.

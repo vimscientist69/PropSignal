@@ -1,16 +1,3 @@
-TODOS:
-
-- [x] First, create a few datasets for testing purposes
-1. 1000 listings set from p24, and 1000 listings set from privateproperty
-2. a dataset with both p24 and 1000 listings from privateproperty joined
-- [ ] phase 3 in week-2-execution plan
-
-Unfinished prompts for phase 3 (scoring_evaluation.py):
-
-1. side note, if I am correct it should not just evaluate the top n, but also the mid n and bottom n.
-
-2. get progress report on phase 3
-
 # 🏠 Real Estate Deal Intelligence Platform (Full System)
 
 ## 🎯 Goal
@@ -446,109 +433,36 @@ Deferred unless core goals are already complete:
 
 ### **Goal**
 
-Ship an **ROI-first, explainable advanced scoring system** that improves ranking quality over the Week 1 baseline by:
-- using **micro-comparables** (location/type/bed/bath segment medians, not a single dataset median),
-- adding **rental yield + transaction-cost adjustments** (net-ish ROI proxy),
-- producing a **reasoning/explanations payload** for every score (so results are inspectable),
-- adding an **analytics engine** that can quantify scoring quality and data health,
-- integrating **LLM enrichment** in a controlled, measurable way (only if it improves outcomes).
+Ship an ROI-first, explainable scoring system (`advanced_v2`) with deterministic evaluation gates that decide promote/revert/experimental outcomes.
 
-### **Deliverables (Week 2)**
+### **Week 2 Source-of-Truth Docs (Updated)**
 
-#### **2.1 Advanced scoring system (v2)**
+- Canonical scope: `docs/week-2-execution-plan.md`
+- Stability details: `docs/scoring-evaluation-middle-bottom-gating-spec.md`
+- Evaluation policy: `docs/evaluation-review-protocol.md`
+- Interface contract: `docs/week2-interface-contract.md`
+- Implementation playbook: `docs/week2-implementation-playbook.md`
 
-- **Micro-comps pricing signals**
-  - Compute segmented medians / distributions for:
-    - `province/city/suburb` (use the deepest level with enough samples)
-    - `property_type`
-    - `bedrooms`, `bathrooms` (bucketed)
-  - Add fallbacks when segment sample size is too small (e.g., suburb → city → province → global).
-  - Replace baseline “single median” price deviation with:
-    - **price_vs_comp_median** (price deviation within the best-available segment)
-    - **price_per_sqm_vs_comp_median** (if floor_size available)
+### **Week 2 High-Level Deliverables**
 
-- **ROI proxy signals**
-  - **Transaction-cost adjustment**
-    - Upfront costs modeled as configurable % or fixed schedule (kept in config).
-    - Optional LLM-assisted extraction path:
-      - infer additional upfront-cost signals from listing fields + description text
-      - emit `upfront_cost_estimate`, `cost_drivers`, and `confidence`
-      - use only when confidence is above threshold, otherwise fallback to deterministic config assumptions
-  - **Net yield proxy**
-    - Use available fields (`rates_and_taxes`, `levies`) + configurable assumptions:
-      - vacancy allowance %, maintenance %, management %, insurance (optional)
-    - Rent estimation approach for Week 2:
-      - **Phase 1 (required):** heuristic rent estimate (config-driven by `property_type`, `bedrooms`, `city/province` buckets)
-      - **Phase 2 (optional):** upgrade rent estimate via LLM/external data only if Phase 1 is weak
-  - Add a yield-derived score component such as:
-    - **net_yield_signal** and **payback_signal** (optional, time-boxed)
+- Advanced scoring (`advanced_v2`) with micro-comps + ROI proxy signals.
+- Structured reasoning payload (`deal_reason` + machine-readable `explanation`).
+- Evaluation gates with deterministic release decisions:
+  - `promote` / `revert` / `experimental`.
+- Segment-based stability checks:
+  - `top_band` (critical), `middle_band`/`bottom_band` (warning),
+  - full-dataset displacement context,
+  - relative displacement thresholds (`*_pct`) for dataset-size-aware gating.
 
-- **Liquidity & risk adjustments**
-  - Keep time-on-market but improve it:
-    - use `date_posted` where available
-    - add a **stale inventory non-linear curve** (e.g., diminishing returns after N days)
-  - Penalize low-confidence or missing-critical-fields in a consistent way:
-    - separate **data_confidence** (completeness) from **investment_risk** (flags like auction/private seller if used)
+### **Week 2 Completion Status (Latest)**
 
-- **Scoring versioning**
-  - Output `model_version="advanced_v2"` (keep baseline runnable side-by-side).
-  - Ensure scoring is **idempotent** per job (overwrite results like Week 1).
-
-#### **2.2 Reasoning engine (explainability)**
-
-- Persist a structured explanation per listing score:
-  - top contributing signals with raw values and normalized scores
-  - “why this was ranked high/low”
-  - confidence and missing-field notes
-- Output target:
-  - a single `deal_reason` string (short)
-  - plus a structured `explanation` JSON blob (machine-readable) for later UI.
-
-#### **2.3 Analytics engine (quality + insight)**
-
-- Implement job-level analytics for:
-  - score distribution (histogram bins, min/max/median, percentiles)
-  - top-N listing summaries (score + key drivers)
-  - missingness report for key fields that affect scoring
-  - comps coverage report: what % of listings got suburb-level comps vs city/province/global
-- Add “ranking quality checks” (offline):
-  - sanity checks for pathological outcomes (e.g., missing price scored too high)
-  - stability checks when changing weights (top-N overlap)
-
-#### **2.4 LLM enrichment prototype (Week 2)**
-
-- **Purpose:** extract high-value structured variables from `description` to improve scoring.
-- **Candidate variables (minimal set):**
-  - condition/renovation level (e.g., “newly renovated”, “needs TLC”)
-  - security/amenities not reliably structured (pool, inverter/solar, etc.)
-  - rental hints (furnished, “investment”, “tenant in place”) as weak signals
-  - upfront-cost hints (legal/levy/special conditions) for ROI proxy refinement
-- **Integration approach (controlled):**
-  - store derived fields in a separate enrichment payload (do not overwrite canonical listing fields)
-  - feed enrichment into scoring only behind an **experiment flag**
-- **Week 2 validation gate (must pass to enable by default):**
-  - improves top-N deal quality on offline evaluation metrics (see 2.5)
-  - does not significantly increase invalid/low-confidence scores
-
-#### **2.5 Evaluation + gates (scope control)**
-
-- Add a lightweight offline evaluation process:
-  - compare baseline_v1 vs advanced_v2 on:
-    - top-N stability and reason diversity
-    - fewer “unknown / missing data” in top ranks
-    - comps coverage improvements
-    - yield proxy sanity (high yield not correlated with missing price)
-- **Decision gates:**
-  - only ship LLM-influenced scoring as default if it improves metrics and is stable
-  - otherwise keep LLM enrichment stored but not used in ranking
-
-### **Suggested implementation order**
-
-- Build micro-comps computation + comp-based pricing signals
-- Add ROI proxy (transaction costs + net yield)
-- Add reasoning payload format
-- Add analytics summaries + evaluation scripts
-- Add LLM enrichment prototype + validation gate
+- Phase 5 rerun after enum + evaluation identity fixes completed successfully.
+- Final validation decision: `promote`.
+- Frozen Week 2 scoring profile values:
+  - `advanced_v2.weights.price_vs_comp = 0.29`
+  - `advanced_v2.weights.roi_proxy = 0.21`
+- Decision artifact:
+  - `backend/output/evaluations/phase5_week2_validation_decision_2026-04-27_post_enum_eval_fix.md`
 
 ---
 
@@ -602,6 +516,10 @@ Turn PropSignal into a **configurable investor decision tool** where users can:
   - pagination and top-N optimized retrieval
   - asynchronous processing for heavy jobs (ingestion/scoring/validation)
   - freshness metadata (`last_ingested_at`, `last_scored_at`, `model/profile version`)
+ - Required performance baseline handoff update (more info in `week2-phase4-performance-baseline-implementation.md`):
+   - after ranking/list/detail APIs are available, update `backend/app/services/performance_baseline.py`
+     to measure API latency and move API SLOs from `deferred` to evaluated (`met`/`missed`)
+   - update `backend/tests/test_performance_baseline.py` to enforce this behavior
 
 #### **3.3 CLI revamp to mirror backend/dashboard capability**
 
@@ -682,6 +600,9 @@ Harden the system for real-world use by running structured validation on real da
 - Optimize bottlenecks (indexes, pagination paths, batch operations).
 - Complete deployment checklist (env config, observability, rollback path, smoke tests).
 - Use `docs/mvp-performance-plan.md` as the implementation checklist and SLO reference.
+- Ensure performance baseline artifacts include dataset-size context and throughput metrics:
+  - `records_total`, `records_valid`
+  - stage throughput (rows/sec) for scoring and validation
 
 #### **4.5 Documentation pack (operator + analyst guidance)**
 

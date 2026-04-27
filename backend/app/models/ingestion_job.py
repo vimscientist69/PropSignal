@@ -17,6 +17,7 @@ class IngestionJob(Base):
             "processing",
             "completed",
             "completed_with_errors",
+            "analyzed",
             "failed",
             name="ingestion_job_status",
             native_enum=False,

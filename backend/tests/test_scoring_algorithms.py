@@ -58,7 +58,9 @@ def test_load_scoring_config_returns_defaults_without_config_file(
         "province",
         "global",
     ]
-    assert config["evaluation_thresholds"]["stability"]["top20_jaccard_min"] == 0.7
+    assert (
+        config["evaluation_thresholds"]["stability"]["segments"]["top_band"]["jaccard_min"] == 0.7
+    )
 
 
 def test_load_scoring_config_deep_merges_advanced_v2_and_threshold_overrides(
@@ -78,7 +80,9 @@ def test_load_scoring_config_deep_merges_advanced_v2_and_threshold_overrides(
                 "    transaction_cost_pct: 0.1",
                 "evaluation_thresholds:",
                 "  stability:",
-                "    rank_correlation_min: 0.85",
+                "    segments:",
+                "      top_band:",
+                "        rank_correlation_min: 0.85",
             ]
         ),
         encoding="utf-8",
@@ -97,8 +101,13 @@ def test_load_scoring_config_deep_merges_advanced_v2_and_threshold_overrides(
     ]
     assert config["advanced_v2"]["roi"]["transaction_cost_pct"] == 0.1
     assert config["advanced_v2"]["roi"]["maintenance_pct"] == 0.04
-    assert config["evaluation_thresholds"]["stability"]["rank_correlation_min"] == 0.85
-    assert config["evaluation_thresholds"]["stability"]["top20_jaccard_min"] == 0.7
+    assert (
+        config["evaluation_thresholds"]["stability"]["segments"]["top_band"]["rank_correlation_min"]
+        == 0.85
+    )
+    assert (
+        config["evaluation_thresholds"]["stability"]["segments"]["top_band"]["jaccard_min"] == 0.7
+    )
 
 
 def test_signal_neutral_defaults_when_inputs_missing() -> None:
@@ -354,8 +363,12 @@ def test_run_scoring_job_uses_advanced_v2_when_flags_enabled(
             },
             "evaluation_thresholds": {
                 "stability": {
-                    "top20_jaccard_min": 0.7,
-                    "rank_correlation_min": 0.8,
+                    "segments": {
+                        "top_band": {
+                            "jaccard_min": 0.7,
+                            "rank_correlation_min": 0.8,
+                        }
+                    },
                 }
             },
         },

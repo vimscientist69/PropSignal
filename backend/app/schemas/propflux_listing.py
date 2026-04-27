@@ -16,7 +16,9 @@ class RecordValidationError(BaseModel):
 
 
 class PropfluxListing(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    # Be permissive with future source schema additions. We still enforce all
+    # required fields/types below, but unknown keys are accepted.
+    model_config = ConfigDict(extra="allow")
 
     # Required fields
     title: str
