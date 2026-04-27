@@ -50,8 +50,11 @@ def _sorted_scores(db: Session, job_id: int) -> list[ScoreResult]:
     ).all()
 
 
-def _ranking_identity_map(db: Session, job_id: int) -> dict[int, str]:
-    listings = db.scalars(select(Listing).where(Listing.job_id == job_id)).all()
+def _ranking_identity_map(db: Session, score_rows: list[ScoreResult]) -> dict[int, str]:
+    listing_ids = {row.listing_id for row in score_rows}
+    if not listing_ids:
+        return {}
+    listings = db.scalars(select(Listing).where(Listing.id.in_(listing_ids))).all()
     identities: dict[int, str] = {}
     for listing in listings:
         external_listing_id = listing.listing_id
@@ -373,7 +376,7 @@ def run_scoring_evaluation(
         raise ValueError(f"No scored listings found for job: {job_id}")
 
     model_version = current_rows[0].model_version
-    current_identity_map = _ranking_identity_map(db, job_id)
+    current_identity_map = _ranking_identity_map(db, current_rows)
     top_n_effective = int(top_n) if top_n > 0 else 20
     sampled_rows = current_rows[:top_n_effective]
 
@@ -544,7 +547,7 @@ def run_scoring_evaluation(
         }
     else:
         reference_rows = _sorted_scores(db, reference_job_id)
-        reference_identity_map = _ranking_identity_map(db, reference_job_id)
+        reference_identity_map = _ranking_identity_map(db, reference_rows)
         current_global_ids = _segment_identities(
             current_rows, current_identity_map, 0, len(current_rows)
         )

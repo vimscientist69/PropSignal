@@ -345,3 +345,90 @@ def test_top_band_perturbation_threshold_can_pass(db_session: Session, monkeypat
     assert report["decision"] == "promote"
     top_band = report["gates"]["stability"]["metrics"]["segments"]["top_band"]
     assert top_band["status"] == "pass"
+
+
+def test_stability_identity_mapping_uses_scored_listing_ids_not_listing_job_id(
+    db_session: Session,
+) -> None:
+    baseline_job = IngestionJob(
+        input_path="baseline.json",
+        status="completed",
+        records_total=1,
+        records_valid=1,
+        records_invalid=0,
+    )
+    candidate_job = IngestionJob(
+        input_path="candidate.json",
+        status="completed",
+        records_total=1,
+        records_valid=1,
+        records_invalid=0,
+    )
+    db_session.add_all([baseline_job, candidate_job])
+    db_session.flush()
+
+    listing = Listing(
+        job_id=baseline_job.id,
+        source_hash="shared-listing-hash",
+        title="Shared listing",
+        price=1_500_000.0,
+        location="Cape Town",
+        bedrooms=3,
+        bathrooms=2.0,
+        property_type="house",
+        description="Shared listing across reruns",
+        listing_id="SHARED-1",
+        source_site="propflux",
+        city="Cape Town",
+        province="Western Cape",
+        floor_size=120.0,
+        normalized_payload={"fixture": True},
+    )
+    db_session.add(listing)
+    db_session.flush()
+
+    explanation = _build_explanation(normalized_value=0.8, final_score=80.0)
+    db_session.add_all(
+        [
+            ScoreResult(
+                job_id=baseline_job.id,
+                listing_id=listing.id,
+                score=80.0,
+                confidence=0.9,
+                deal_reason="baseline",
+                explanation=explanation,
+                model_version="advanced_v2",
+            ),
+            ScoreResult(
+                job_id=candidate_job.id,
+                listing_id=listing.id,
+                score=79.5,
+                confidence=0.9,
+                deal_reason="candidate",
+                explanation=explanation,
+                model_version="advanced_v2",
+            ),
+            RawListing(
+                job_id=candidate_job.id,
+                record_index=0,
+                source_site="propflux",
+                listing_id="SHARED-1",
+                payload={"price": listing.price},
+            ),
+        ]
+    )
+
+    # Simulate upsert behavior where canonical listing ownership shifts to the
+    # latest ingestion job, which previously broke identity overlap.
+    listing.job_id = candidate_job.id
+    db_session.commit()
+
+    report = run_scoring_evaluation(
+        db_session,
+        job_id=candidate_job.id,
+        reference_job_id=baseline_job.id,
+        top_n=20,
+    )
+    top_band = report["gates"]["stability"]["metrics"]["segments"]["top_band"]
+    assert top_band["metrics"]["intersection_count"] == 1
+    assert top_band["metrics"]["jaccard_overlap"] == 1.0
