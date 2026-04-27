@@ -11,4 +11,3 @@ def test_run_analytics_job_sets_analyzed_status(db_session: Session) -> None:
 
     analyzed = run_analytics_job(db_session, job.id)
     assert analyzed.status == "analyzed"
-

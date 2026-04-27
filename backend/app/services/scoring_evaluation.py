@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from datetime import UTC, datetime
 from pathlib import Path
 from statistics import correlation, median
@@ -21,7 +22,7 @@ def _safe_divide(numerator: float, denominator: float) -> float:
     return numerator / denominator
 
 
-def _compute_jaccard(left_ids: list[str], right_ids: list[str]) -> float:
+def _compute_jaccard(left_ids: Sequence[str | int], right_ids: Sequence[str | int]) -> float:
     left_set = set(left_ids)
     right_set = set(right_ids)
     union_size = len(left_set | right_set)
@@ -30,7 +31,9 @@ def _compute_jaccard(left_ids: list[str], right_ids: list[str]) -> float:
     return round(len(left_set & right_set) / union_size, 4)
 
 
-def _spearman_rank_correlation(current_ids: list[str], reference_ids: list[str]) -> float:
+def _spearman_rank_correlation(
+    current_ids: Sequence[str | int], reference_ids: Sequence[str | int]
+) -> float:
     current_rank = {listing_id: idx + 1 for idx, listing_id in enumerate(current_ids)}
     reference_rank = {listing_id: idx + 1 for idx, listing_id in enumerate(reference_ids)}
     common_ids = sorted(set(current_rank) & set(reference_rank))
@@ -43,11 +46,12 @@ def _spearman_rank_correlation(current_ids: list[str], reference_ids: list[str])
 
 
 def _sorted_scores(db: Session, job_id: int) -> list[ScoreResult]:
-    return db.scalars(
+    rows = db.scalars(
         select(ScoreResult)
         .where(ScoreResult.job_id == job_id)
         .order_by(ScoreResult.score.desc(), ScoreResult.listing_id.asc())
     ).all()
+    return list(rows)
 
 
 def _ranking_identity_map(db: Session, score_rows: list[ScoreResult]) -> dict[int, str]:
@@ -58,11 +62,10 @@ def _ranking_identity_map(db: Session, score_rows: list[ScoreResult]) -> dict[in
     identities: dict[int, str] = {}
     for listing in listings:
         external_listing_id = listing.listing_id
-        identities[listing.id] = (
-            external_listing_id
-            if external_listing_id not in (None, "")
-            else f"internal-{listing.id}"
-        )
+        if isinstance(external_listing_id, str) and external_listing_id:
+            identities[listing.id] = external_listing_id
+        else:
+            identities[listing.id] = f"internal-{listing.id}"
     return identities
 
 
@@ -709,12 +712,13 @@ def run_scoring_evaluation(
     minimum_sample_for_promote = int(decision_thresholds.get("minimum_sample_for_promote", 100))
     warning_gate_keys: list[str] = []
     failed_gate_keys: list[str] = []
-    for gate_key, gate_payload in {
+    gate_payloads: dict[str, dict[str, Any]] = {
         "data_quality": data_quality_gate,
         "scoring_sanity": scoring_sanity_gate,
         "stability": stability_gate,
         "explainability": explainability_gate,
-    }.items():
+    }
+    for gate_key, gate_payload in gate_payloads.items():
         if gate_payload["status"] == "fail":
             failed_gate_keys.append(gate_key)
         elif gate_payload["status"] == "warn":

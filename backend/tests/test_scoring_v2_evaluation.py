@@ -203,6 +203,7 @@ def test_top_band_displacement_threshold_can_fail(db_session: Session, monkeypat
     assert report["decision"] == "revert"
     assert "stability" in report["failed_gates"]
 
+
 def test_full_dataset_displacement_warning_is_context_only(
     db_session: Session, monkeypatch
 ) -> None:

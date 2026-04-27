@@ -90,9 +90,7 @@ def _compute_audit_inputs(job_id: int, records: list[dict[str, Any]]) -> dict[in
     advanced_v2_cfg = config.get("advanced_v2", {})
     comps_cfg = advanced_v2_cfg.get("comps", {})
     roi_cfg = advanced_v2_cfg.get("roi", {})
-    fallback_order = list(
-        comps_cfg.get("fallback_order", ["suburb", "city", "province", "global"])
-    )
+    fallback_order = list(comps_cfg.get("fallback_order", ["suburb", "city", "province", "global"]))
     include_bedrooms = bool(comps_cfg.get("include_bedrooms", True))
     include_bathrooms = bool(comps_cfg.get("include_bathrooms", True))
     minimum_cohort_size = int(comps_cfg.get("minimum_cohort_size", 12))

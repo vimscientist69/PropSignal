@@ -131,7 +131,7 @@ def run_performance_baseline(
         "filtered_ranking_api_p95_ms": 1200.0,
         "listing_detail_api_p95_ms": 500.0,
     }
-    slo_assessment = {"met": [], "missed": [], "deferred": []}
+    slo_assessment: dict[str, list[str]] = {"met": [], "missed": [], "deferred": []}
     if aggregate["score"]["p95_s"] <= slo_targets["scoring_run_10k_max_s"]:
         slo_assessment["met"].append("scoring_run_10k_max_s")
     else:
