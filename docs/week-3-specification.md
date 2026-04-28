@@ -6,13 +6,13 @@ performance constraints, and test coverage.
 
 ## 1) Objective
 
-Deliver the first production-usable strategy workflow:
+Deliver the first production-usable strategy workflow across dashboard, API, and CLI:
 
 - select one or more dataset sources,
 - apply investor filters,
 - resolve a strategy profile,
 - produce ranked listings with rich diagnostics,
-- access listing-level detail consistently from API and CLI.
+- access listing-level detail consistently from dashboard, API, and CLI.
 
 Week 3 must preserve the Week 2 evaluation and scoring contracts while expanding access patterns.
 
@@ -21,6 +21,7 @@ Week 3 must preserve the Week 2 evaluation and scoring contracts while expanding
 ### In scope
 
 - Strategy-aware ranking APIs.
+- Dashboard strategy workflow UI (dataset selection, filters, strategy controls, ranked results, detail panel).
 - Listing detail diagnostics API.
 - Scoring profile discovery and resolution API.
 - Query/filter pipeline that supports merged dataset-source selection.
@@ -37,6 +38,36 @@ Week 3 must preserve the Week 2 evaluation and scoring contracts while expanding
 - Broad external data-source integration beyond one controlled addition.
 
 ## 3) Product Behavior Requirements
+
+### 3.0 Dashboard workflow requirements
+
+Week 3 includes a functional dashboard experience, not just backend contracts.
+
+Dashboard must provide:
+
+- dataset handling:
+  - upload/select dataset source(s),
+  - source multi-select controls including `select_all` and `clear_all`,
+  - current job status + validation summary panel.
+- filter controls:
+  - province/city/suburb,
+  - budget range,
+  - property type + bedrooms + bathrooms,
+  - confidence threshold.
+- strategy controls:
+  - preset selector (`rental_income`, `resale_arbitrage`, `refurbishment_value_add`, `balanced_long_term`),
+  - optional advanced weight overrides with safe-bound validation feedback.
+- result surfaces:
+  - ranked listing table/cards with score, deal reason, and core attributes,
+  - detail panel/drawer showing full diagnostics payload for selected listing,
+  - visible run metadata (`run_id`, profile version, model version, freshness).
+
+Dashboard behavior constraints:
+
+- all ranking submissions use the same request schema as `POST /api/v1/rankings/query`,
+- dashboard input validation should mirror backend validation with user-friendly messages,
+- results and detail views must be reproducible by run/listing IDs (shareable debugging path),
+- no business-logic duplication in frontend; strategy/profile logic remains backend-owned.
 
 ### 3.1 Dataset selection behavior
 
@@ -166,7 +197,7 @@ All Week 3 API errors use consistent shape:
 
 ## 5) CLI Specification
 
-CLI must stay functionally equivalent to API behavior.
+CLI must stay functionally equivalent to API behavior and align with dashboard-visible behavior.
 
 ### 5.1 Run ranking query
 
@@ -299,7 +330,33 @@ Logging requirements:
 - log validation failures as warning-level events with code and field context,
 - avoid logging sensitive payload values beyond required diagnostics.
 
-## 10) Testing Strategy
+## 10) Dashboard Implementation Requirements
+
+Week 3 dashboard implementation should stay strategy-tool focused and avoid unrelated UI expansion.
+
+Required views/components:
+
+- dataset/source selection and upload area,
+- filter + strategy control panel,
+- ranked results view,
+- listing detail diagnostics panel,
+- run status/freshness strip.
+
+State and integration contract:
+
+- dashboard owns only UI state and request composition,
+- API responses are the source of truth for ranking outputs and detail payloads,
+- all dashboard actions should map to explicit API calls (no hidden local scoring path),
+- query state should be serializable (future URL/state restore support).
+
+Acceptance criteria for dashboard slice:
+
+- user can execute a full path: select sources -> set filters -> pick strategy -> run ranking -> open detail,
+- user can change strategy preset and observe ranking refresh,
+- user can inspect validation/status context before ranking,
+- detail panel displays signal-level diagnostics from backend payload without missing critical fields.
+
+## 11) Testing Strategy
 
 ### 10.1 Unit tests
 
@@ -312,7 +369,8 @@ Logging requirements:
 
 - API rank query happy path with one and multiple sources,
 - API detail retrieval for ranked listing,
-- CLI commands mirror API output shape for equivalent inputs.
+- CLI commands mirror API output shape for equivalent inputs,
+- dashboard interactions exercise ranking + detail API path (smoke-level UI test).
 
 ### 10.3 Performance tests
 
@@ -324,7 +382,7 @@ Logging requirements:
 - preserve Week 2 scoring evaluation behavior and contracts,
 - ensure strategy-layer additions do not break existing ingestion/scoring flows.
 
-## 11) Security and Validation Requirements
+## 12) Security and Validation Requirements
 
 - strict schema validation at API boundary,
 - whitelist strategy preset values,
@@ -333,7 +391,7 @@ Logging requirements:
 - sanitize and bound pagination inputs,
 - avoid direct SQL string interpolation in filter pipeline construction.
 
-## 12) Rollout Plan
+## 13) Rollout Plan
 
 ### Phase A: Contract + skeleton
 
@@ -347,10 +405,11 @@ Logging requirements:
 - persist run metadata and references,
 - return summary payload.
 
-### Phase C: Detail + profile APIs/CLI
+### Phase C: Dashboard + detail + profile APIs/CLI
 
+- implement dashboard workflow UI and wire it to ranking/detail/profile APIs,
 - implement detail retrieval and profile inspection surfaces,
-- align CLI with API contract.
+- align CLI with API contract and dashboard behavior.
 
 ### Phase D: Performance and hardening
 
@@ -358,11 +417,12 @@ Logging requirements:
 - optimize indexes/query plans for hot paths,
 - complete required tests and docs updates.
 
-## 13) Definition of Done (Week 3)
+## 14) Definition of Done (Week 3)
 
 Week 3 is complete when all conditions hold:
 
 - ranking APIs are available and documented.
+- dashboard supports end-to-end strategy ranking workflow (source selection -> filter -> strategy -> ranked results -> detail panel).
 - CLI provides equivalent ranking, profile, and detail workflows.
 - strategy presets resolve deterministically with safe override support.
 - ranking runs persist metadata and support reliable detail lookup.
@@ -373,7 +433,7 @@ Week 3 is complete when all conditions hold:
   - implementation references in project notes,
   - any changed API/CLI usage docs.
 
-## 14) Open Decisions (Must Resolve Early)
+## 15) Open Decisions (Must Resolve Early)
 
 - Final endpoint naming and route grouping under existing API layout.
 - Whether run listing references are persisted fully or reconstructed on demand.
