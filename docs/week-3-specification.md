@@ -399,6 +399,73 @@ Acceptance criteria for dashboard slice:
 - add API/CLI stubs wired to service interfaces,
 - add profile resolution foundation.
 
+#### Phase A implementation steps (execution order)
+
+1. Freeze request/response contracts first.
+   - Create backend schema models for:
+     - ranking query request (`dataset_sources`, `filters`, `strategy`, `result_window`),
+     - ranking query response (metadata + `results[]` + pagination/top-n envelope),
+     - listing detail response,
+     - profile list/profile detail responses,
+     - shared error envelope (`code`, `message`, `field_errors`, `request_id`).
+   - Add strict validation rules for numeric bounds and enum constraints.
+   - Add schema unit tests for valid and invalid payloads.
+
+2. Create service interfaces with placeholder implementations.
+   - Add service entrypoints:
+     - `run_ranking_query(...)`,
+     - `get_listing_detail(...)`,
+     - `list_profiles(...)`,
+     - `resolve_profile(...)`.
+   - Return deterministic placeholder payloads that match contract shape (no ranking logic yet).
+   - Ensure placeholder responses include `run_id` and version metadata fields.
+
+3. Add API route skeletons and wire them to services.
+   - Add route handlers for:
+     - `POST /api/v1/rankings/query`,
+     - `GET /api/v1/rankings/{run_id}/listings/{listing_id}`,
+     - `GET /api/v1/scoring/profiles`,
+     - `GET /api/v1/scoring/profiles/{preset}`.
+   - Keep handlers thin (parse -> call service -> map to response).
+   - Add consistent error mapping for validation and not-found paths.
+
+4. Add CLI command skeletons mapped to the same service layer.
+   - Add commands:
+     - `rank-query`,
+     - `listing-detail`,
+     - `profiles-list`,
+     - `profile-show`.
+   - Parse CLI args into the same request models used by API.
+   - Output contract-aligned JSON with a compact terminal summary.
+
+5. Implement profile resolution foundation.
+   - Add canonical preset registry (`rental_income`, `resale_arbitrage`, `refurbishment_value_add`, `balanced_long_term`).
+   - Add resolver that returns:
+     - default weights,
+     - enabled signals,
+     - `profile_id`,
+     - `profile_version`.
+   - Add override validator:
+     - reject unknown signal keys,
+     - enforce safe bounds,
+     - normalize final weights.
+   - Add resolver tests for pass/fail/edge cases.
+
+6. Deliver Phase A verification gate.
+   - Backend: all new schema, service, and route tests pass.
+   - CLI: command smoke tests pass and output expected JSON shape.
+   - Quality checks pass:
+     - `./scripts/lint.sh`
+     - `./scripts/test.sh`
+     - `npm --prefix frontend run build` (only if files outside strict Phase A scope changed).
+
+#### Phase A done criteria (must be true before Phase B)
+
+- All Week 3 endpoint and command contracts are stable and documented.
+- API and CLI call the same service contracts (no duplicated business rules).
+- Profile discovery and resolution work end-to-end with validated overrides.
+- Placeholder API/CLI flows run successfully, enabling Phase B logic implementation without contract churn.
+
 ### Phase B: Query + ranking implementation
 
 - implement filtered candidate retrieval and rank execution,
