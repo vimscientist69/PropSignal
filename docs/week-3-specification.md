@@ -1,3 +1,9 @@
+
+Some things that aren't explicitly defined yet (agent prompts):
+1. Where will profiles be stored for different presets? How will they be tested individually and evaluated and refined through comparing results? How will they be configured in the CLI and for the dashboard? Possibly through the `scoring.yaml` preset profiles can be configured for cli, and the dashboard? What will work best? What questions am I not asking? But for quick versioning and fallback, possibly using profile identifiers. I see there are profile versions as well, how will this play a role?
+2. Is anything non-user related exposed to the dashboard? The dashboard is meant as a tool, not to expose / overly explain internal processes. it should provide value, not explain the internal system, profiles. I guess.
+
+
 # Week 3 Detailed Specification
 
 This document defines the Week 3 implementation scope as an execution-ready specification.
@@ -174,7 +180,7 @@ Response body:
 - `score_summary`,
 - `diagnostics`:
   - signal breakdown (raw, normalized, weighted),
-  - comparable cohort + fallback level,
+  - comparable cohort + f/phallback level,
   - ROI assumptions and components,
   - confidence/risk flags,
   - scoring metadata (`model_version`, `profile_version`).
