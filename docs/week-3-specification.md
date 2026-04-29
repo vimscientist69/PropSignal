@@ -1,19 +1,4 @@
 
-Some things that aren't explicitly defined yet (agent prompts):
-1. Where will profiles be stored for different presets? How will they be tested individually and evaluated and refined through comparing results? How will they be configured in the CLI and for the dashboard? Possibly through the `scoring.yaml` preset profiles can be configured for cli, and the dashboard? What will work best? What questions am I not asking? But for quick versioning and fallback, possibly using profile identifiers. I see there are profile versions as well, how will this play a role?
-2. Can you update the week 3 specification to manage profiling in dashboard (default, high value profiles as default, can recover if deleted, crud operations, select a profile for a specific strategy, and weight overrides controls on the main dashboard panel where filters and configurations are configured, with a reset (used to get a little bit different result based on currently selected profile for current strategy). Before creating an update to the week 3 specification, first elaborate, be specific, specify, then I'll confirm / ask follow up questions till we have the exact updates to make to the week 3 implementation plan spec.
-
-**TODOS:**
-
-Must do todos in `ranking_query.py`.
-
-```
-# TODO: actually research what weights and signals, and what values are speculatively the best for each strategy preset.
-# NOTE: This is not a quick, once-off task. It is critical for the success of the project.
-# NOTE: Ideally there should be an evaluation process for each strategy profile, similar to baseline evaluation, to analyze, refine, and compare results.
-# NOTE: The weights and signals should be config based, as to not edit an actual source file, but to edit a configuration file.
-```
-
 # Week 3 Detailed Specification
 
 This document defines the Week 3 implementation scope as an execution-ready specification.
@@ -72,7 +57,8 @@ Dashboard must provide:
   - confidence threshold.
 - strategy controls:
   - preset selector (`rental_income`, `resale_arbitrage`, `refurbishment_value_add`, `balanced_long_term`),
-  - optional advanced weight overrides with safe-bound validation feedback.
+  - optional advanced weight overrides with safe-bound validation feedback,
+  - reset control that restores defaults for the resolved preset for the current request.
 - result surfaces:
   - ranked listing table/cards with score, deal reason, and core attributes,
   - detail panel/drawer showing full diagnostics payload for selected listing,
@@ -84,6 +70,7 @@ Dashboard behavior constraints:
 - dashboard input validation should mirror backend validation with user-friendly messages,
 - results and detail views must be reproducible by run/listing IDs (shareable debugging path),
 - no business-logic duplication in frontend; strategy/profile logic remains backend-owned.
+- dashboard does not perform profile CRUD or preset alias remapping in Week 3.
 
 ### 3.1 Dataset selection behavior
 
@@ -93,7 +80,7 @@ Dashboard behavior constraints:
   - `last_ingested_at`
   - `last_scored_at`
   - `model_version`
-  - `profile_version` (resolved scoring profile version)
+  - `profile_id` (resolved scoring profile identifier)
 
 ### 3.2 Filter behavior
 
@@ -130,10 +117,12 @@ Resolution model:
 - preset resolves to a profile with:
   - signal weights,
   - enabled/disabled signals,
-  - profile metadata (`profile_id`, `profile_version`).
+  - profile metadata (`profile_id`).
 - optional user overrides are allowed only within safe bounds:
   - weight change clamp per signal: +/-20% from preset,
   - resulting weight vector must normalize to 1.0.
+- `preset_alias_mapping` is configured in `backend/config/scoring_profiles.yaml` and resolved server-side.
+- override changes are request-scoped only and are not persisted as profile updates.
 
 If override validation fails, reject request with explicit field-level reason.
 
@@ -164,7 +153,6 @@ Response body:
 - `query_fingerprint: string`,
 - `resolved_profile`:
   - `profile_id`,
-  - `profile_version`,
   - `resolved_weights`,
   - `enabled_signals`,
 - `dataset_context`:
@@ -193,7 +181,7 @@ Response body:
   - comparable cohort + f/phallback level,
   - ROI assumptions and components,
   - confidence/risk flags,
-  - scoring metadata (`model_version`, `profile_version`).
+  - scoring metadata (`model_version`, `profile_id`).
 
 ### 4.3 Strategy profiles endpoint
 
@@ -201,6 +189,8 @@ Response body:
   - list available presets with labels and intent.
 - `GET /api/v1/scoring/profiles/{preset}`
   - resolved default config, safe override bounds, signal map.
+
+Week 3 write operations for profile CRUD and alias remapping are out of scope.
 
 ### 4.4 API error contract
 
@@ -273,7 +263,7 @@ Create or extend services to keep controllers minimal:
   - persist run metadata + references,
   - return transport-ready payload.
 - `profile_resolution_service`:
-  - map preset -> profile config,
+  - map preset -> profile config from `backend/config/scoring_profiles.yaml`,
   - apply safe override validation and normalization.
 - `listing_detail_service`:
   - retrieve detail payload by run/listing context.
@@ -295,7 +285,7 @@ Add persistence model for ranking runs (name can follow existing model style), i
 - selected dataset sources,
 - filter payload snapshot,
 - strategy preset and resolved profile snapshot,
-- model/profile version metadata,
+- model metadata and resolved profile identifier (`profile_id` / `profile_row_id`),
 - result window parameters,
 - result count.
 
@@ -338,7 +328,7 @@ For each ranking run, produce an artifact under `backend/output/` containing:
 - resolved profile snapshot,
 - top results summary,
 - timings (`filter_ms`, `score_ms`, `serialize_ms`),
-- run metadata and versions.
+- run metadata and profile identifiers.
 
 Logging requirements:
 
@@ -364,6 +354,8 @@ State and integration contract:
 - API responses are the source of truth for ranking outputs and detail payloads,
 - all dashboard actions should map to explicit API calls (no hidden local scoring path),
 - query state should be serializable (future URL/state restore support).
+- dashboard may select strategy preset and submit request-scoped overrides only.
+- dashboard must not expose profile CRUD or alias remapping actions.
 
 Acceptance criteria for dashboard slice:
 
@@ -435,7 +427,7 @@ currently here
      - `list_profiles(...)`,
      - `resolve_profile(...)`.
    - Return deterministic placeholder payloads that match contract shape (no ranking logic yet).
-   - Ensure placeholder responses include `run_id` and version metadata fields.
+  - Ensure placeholder responses include `run_id` and resolved profile identifier fields.
 
 3. Add API route skeletons and wire them to services.
    - Add route handlers for:
@@ -457,11 +449,11 @@ currently here
 
 5. Implement profile resolution foundation.
    - Add canonical preset registry (`rental_income`, `resale_arbitrage`, `refurbishment_value_add`, `balanced_long_term`).
+  - Store preset alias mapping in `backend/config/scoring_profiles.yaml`.
    - Add resolver that returns:
      - default weights,
      - enabled signals,
-     - `profile_id`,
-     - `profile_version`.
+    - `profile_id`.
    - Add override validator:
      - reject unknown signal keys,
      - enforce safe bounds,
@@ -509,6 +501,7 @@ Week 3 is complete when all conditions hold:
 - dashboard supports end-to-end strategy ranking workflow (source selection -> filter -> strategy -> ranked results -> detail panel).
 - CLI provides equivalent ranking, profile, and detail workflows.
 - strategy presets resolve deterministically with safe override support.
+- dashboard supports preset selection and request-scoped override/reset without profile CRUD or alias remapping.
 - ranking runs persist metadata and support reliable detail lookup.
 - API SLO metrics are measured in baseline artifacts (not deferred).
 - required tests pass (`lint`, backend tests, frontend type/build checks as relevant).

@@ -14,7 +14,7 @@ This spec intentionally uses **profile identifiers only** (no profile versioning
 - Preset alias mapping to profile identifiers.
 - Server-side profile resolution shared by API and CLI.
 - Dashboard and CLI behavior for preset selection and overrides.
-- Run-time profile snapshot/reference persistence.
+- Run-time profile reference persistence.
 - Manual evaluation and manual promotion workflow.
 
 ### Out of scope (defer)
@@ -89,10 +89,7 @@ No scoring logic is duplicated in dashboard or CLI.
 
 Historical runs must remain reproducible even if config evolves.
 
-Each ranking run stores either:
-
-- full resolved profile snapshot, and/or
-- a database reference field `profile_row_id`.
+Each ranking run stores a database reference field `profile_row_id`.
 
 Recommended Week 3 behavior:
 
@@ -100,7 +97,6 @@ Recommended Week 3 behavior:
 2. Check if an equivalent profile record already exists in DB.
 3. If it does not exist, insert profile backup record.
 4. Persist `profile_row_id` on run record.
-5. Persist enough snapshot fields on run for audit/debug readability.
 
 This gives historical stability with deduplicated profile backup rows.
 
