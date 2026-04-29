@@ -1,8 +1,18 @@
 
 Some things that aren't explicitly defined yet (agent prompts):
 1. Where will profiles be stored for different presets? How will they be tested individually and evaluated and refined through comparing results? How will they be configured in the CLI and for the dashboard? Possibly through the `scoring.yaml` preset profiles can be configured for cli, and the dashboard? What will work best? What questions am I not asking? But for quick versioning and fallback, possibly using profile identifiers. I see there are profile versions as well, how will this play a role?
-2. Is anything non-user related exposed to the dashboard? The dashboard is meant as a tool, not to expose / overly explain internal processes. it should provide value, not explain the internal system, profiles. I guess.
+2. Can you update the week 3 specification to manage profiling in dashboard (default, high value profiles as default, can recover if deleted, crud operations, select a profile for a specific strategy, and weight overrides controls on the main dashboard panel where filters and configurations are configured, with a reset (used to get a little bit different result based on currently selected profile for current strategy). Before creating an update to the week 3 specification, first elaborate, be specific, specify, then I'll confirm / ask follow up questions till we have the exact updates to make to the week 3 implementation plan spec.
 
+**TODOS:**
+
+Must do todos in `ranking_query.py`.
+
+```
+# TODO: actually research what weights and signals, and what values are speculatively the best for each strategy preset.
+# NOTE: This is not a quick, once-off task. It is critical for the success of the project.
+# NOTE: Ideally there should be an evaluation process for each strategy profile, similar to baseline evaluation, to analyze, refine, and compare results.
+# NOTE: The weights and signals should be config based, as to not edit an actual source file, but to edit a configuration file.
+```
 
 # Week 3 Detailed Specification
 
