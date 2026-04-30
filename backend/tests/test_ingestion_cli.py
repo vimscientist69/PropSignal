@@ -22,6 +22,10 @@ def test_cli_help_includes_preweek1_commands() -> None:
     assert "analyze" in result.stdout
     assert "export" in result.stdout
     assert "validate-dataset" in result.stdout
+    assert "rank-query" in result.stdout
+    assert "listing-detail" in result.stdout
+    assert "profiles-list" in result.stdout
+    assert "profile-show" in result.stdout
 
 
 def test_cli_ingest_uses_ingestion_service(monkeypatch) -> None:

@@ -32,7 +32,6 @@ def test_list_profiles_returns_supported_presets() -> None:
 
 
 def test_resolve_profile_applies_override_and_normalizes() -> None:
-    baseline = resolve_profile(StrategyPreset.rental_income)
     resolved = resolve_profile(
         StrategyPreset.rental_income,
         {"roi_proxy": 0.36},

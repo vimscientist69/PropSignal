@@ -7,6 +7,7 @@ from typing import Any
 from app.schemas.ranking import (
     DatasetContext,
     ListingDetailResponse,
+    PaginationEnvelope,
     ProfileDetailResponse,
     ProfileSummaryResponse,
     RankingQueryRequest,
@@ -21,10 +22,8 @@ PLACEHOLDER_MODEL_VERSION = "advanced_v2"
 PLACEHOLDER_PROFILE_VERSION = "v1"
 PLACEHOLDER_PROFILE_ID_PREFIX = "strategy-profile"
 
-# TODO: actually research what weights and signals, and what values are speculatively the best for each strategy preset.
-# NOTE: This is not a quick, once-off task. It is critical for the success of the project.
-# NOTE: Ideally there should be an evaluation process for each strategy profile, similar to baseline evaluation, to analyze, refine, and compare results.
-# NOTE: The weights and signals should be config based, as to not edit an actual source file, but to edit a configuration file.
+# TODO: Move profile definitions to config and evaluate strategy-specific weights.
+# Keep this placeholder map only for contract-level Week 3 skeleton behavior.
 _PROFILE_LIBRARY: dict[StrategyPreset, dict[str, Any]] = {
     StrategyPreset.rental_income: {
         "label": "Rental Income Focus",
@@ -106,9 +105,11 @@ def resolve_profile(
     for signal, value in requested_overrides.items():
         bounds = safe_bounds[signal]
         if value < bounds["min"] or value > bounds["max"]:
-            raise ValueError(
-                f"Override for '{signal}' must be between {bounds['min']} and {bounds['max']}, got {value}."
+            range_message = (
+                f"Override for '{signal}' must be between "
+                f"{bounds['min']} and {bounds['max']}, got {value}."
             )
+            raise ValueError(range_message)
 
     normalized = _normalized_weights(default_weights, requested_overrides)
     return ProfileDetailResponse(
@@ -170,12 +171,12 @@ def run_ranking_query(request: RankingQueryRequest) -> RankingQueryResponse:
     else:
         page = request.result_window.page or 1
         page_size = request.result_window.page_size or 20
-        pagination = {
-            "mode": "pagination",
-            "page": page,
-            "page_size": page_size,
-            "total_count": len(results),
-        }
+        pagination = PaginationEnvelope(
+            mode="pagination",
+            page=page,
+            page_size=page_size,
+            total_count=len(results),
+        )
 
     return RankingQueryResponse(
         run_id=run_id,

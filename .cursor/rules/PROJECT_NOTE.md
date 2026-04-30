@@ -1,8 +1,5 @@
 # 🏠 Real Estate Deal Intelligence Platform (Full System)
 
-500ish dataset scraped from propflux, move to this
-project samples folder
-
 ## 🎯 Goal
 
 Build a **production-grade data intelligence system** that transforms large-scale real estate listing datasets into **high-quality investment opportunities** using advanced scoring, analytics, and a clean, interactive dashboard.
