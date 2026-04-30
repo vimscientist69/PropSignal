@@ -36,7 +36,7 @@ def test_rank_query_runs_with_schema_aligned_payload(tmp_path: Path) -> None:
             "--page-size",
             "20",
             "--weight-override",
-            "roi_proxy=0.36",
+            "roi_proxy=0.55",
             "--output-json",
             str(output_file),
         ],
@@ -45,7 +45,7 @@ def test_rank_query_runs_with_schema_aligned_payload(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "Ranking completed: run_id=" in result.stdout
     payload = _parse_json_from_output(result.stdout)
-    assert payload["resolved_profile"]["profile_id"].startswith("strategy-profile-")
+    assert payload["resolved_profile"]["profile_id"] == "rental_income_default"
     assert payload["dataset_context"]["selected_sources"] == ["sample-a", "sample-b"]
     assert output_file.exists()
 

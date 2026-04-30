@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from app.schemas.ranking import RankingQueryRequest, StrategyPreset
 from app.services.ranking_query import (
@@ -34,9 +36,9 @@ def test_list_profiles_returns_supported_presets() -> None:
 def test_resolve_profile_applies_override_and_normalizes() -> None:
     resolved = resolve_profile(
         StrategyPreset.rental_income,
-        {"roi_proxy": 0.36},
+        {"roi_proxy": 0.55},
     )
-    assert resolved.profile_id.startswith("strategy-profile-")
+    assert resolved.profile_id == "rental_income_default"
     assert resolved.profile_version == "v1"
     assert sum(resolved.default_weights.values()) == pytest.approx(1.0, abs=1e-5)
 
@@ -44,6 +46,55 @@ def test_resolve_profile_applies_override_and_normalizes() -> None:
 def test_resolve_profile_rejects_unknown_signal_override() -> None:
     with pytest.raises(ValueError, match="Unknown override signal"):
         resolve_profile(StrategyPreset.rental_income, {"unknown_signal": 0.1})
+
+
+def test_resolve_profile_rejects_out_of_bounds_override() -> None:
+    with pytest.raises(ValueError, match="must be between"):
+        resolve_profile(StrategyPreset.rental_income, {"roi_proxy": 0.99})
+
+
+def test_resolve_profile_uses_alias_mapped_profile_ids() -> None:
+    resolved = resolve_profile(StrategyPreset.resale_arbitrage)
+    assert resolved.profile_id == "resale_arbitrage_default"
+    assert resolved.enabled_signals == [
+        "price_vs_comp",
+        "size_vs_comp",
+        "time_on_market",
+        "confidence",
+    ]
+
+
+def test_resolve_profile_from_env_path_override(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    config_path = tmp_path / "scoring_profiles.yaml"
+    config_path.write_text(
+        "\n".join(
+            [
+                "profiles:",
+                "  rental_income_custom:",
+                "    profile_id: rental_income_custom",
+                "    label: Rental Income Custom",
+                "    description: Custom profile for test",
+                "    enabled_signals:",
+                "      - roi_proxy",
+                "      - confidence",
+                "    weights:",
+                "      roi_proxy: 0.7",
+                "      confidence: 0.3",
+                "preset_alias_mapping:",
+                "  rental_income: rental_income_custom",
+                "  resale_arbitrage: resale_arbitrage_default",
+                "  refurbishment_value_add: refurbishment_value_add_default",
+                "  balanced_long_term: balanced_long_term_default",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("SCORING_PROFILES_PATH", str(config_path))
+    resolved = resolve_profile(StrategyPreset.rental_income)
+    assert resolved.profile_id == "rental_income_custom"
+    assert resolved.default_weights == {"roi_proxy": 0.7, "confidence": 0.3}
 
 
 def test_run_ranking_query_is_deterministic_for_same_request() -> None:

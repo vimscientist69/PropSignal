@@ -2,7 +2,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
+from pathlib import Path
 from typing import Any
+
+import yaml
 
 from app.schemas.ranking import (
     DatasetContext,
@@ -20,35 +24,13 @@ from app.schemas.ranking import (
 
 PLACEHOLDER_MODEL_VERSION = "advanced_v2"
 PLACEHOLDER_PROFILE_VERSION = "v1"
-PLACEHOLDER_PROFILE_ID_PREFIX = "strategy-profile"
-
-# TODO: Move profile definitions to config and evaluate strategy-specific weights.
-# Keep this placeholder map only for contract-level Week 3 skeleton behavior.
-_PROFILE_LIBRARY: dict[StrategyPreset, dict[str, Any]] = {
-    StrategyPreset.rental_income: {
-        "label": "Rental Income Focus",
-        "description": "Prioritize yield and stable recurring rental performance.",
-        "default_weights": {"roi_proxy": 0.35, "price_vs_comp": 0.3, "confidence": 0.15},
-        "enabled_signals": ["roi_proxy", "price_vs_comp", "confidence"],
-    },
-    StrategyPreset.resale_arbitrage: {
-        "label": "Resale/Arbitrage Focus",
-        "description": "Prioritize underpriced listings with resale upside.",
-        "default_weights": {"price_vs_comp": 0.45, "size_vs_comp": 0.25, "confidence": 0.1},
-        "enabled_signals": ["price_vs_comp", "size_vs_comp", "confidence"],
-    },
-    StrategyPreset.refurbishment_value_add: {
-        "label": "Refurbishment/Value-Add Focus",
-        "description": "Target assets with value-add opportunity and downside control.",
-        "default_weights": {"price_vs_comp": 0.4, "feature_value": 0.25, "confidence": 0.15},
-        "enabled_signals": ["price_vs_comp", "feature_value", "confidence"],
-    },
-    StrategyPreset.balanced_long_term: {
-        "label": "Balanced Long-Term Hold",
-        "description": "Balanced blend of yield, comparables, and confidence.",
-        "default_weights": {"roi_proxy": 0.25, "price_vs_comp": 0.25, "confidence": 0.2},
-        "enabled_signals": ["roi_proxy", "price_vs_comp", "confidence"],
-    },
+SUPPORTED_SIGNALS = {
+    "price_vs_comp",
+    "size_vs_comp",
+    "time_on_market",
+    "feature_value",
+    "confidence",
+    "roi_proxy",
 }
 
 
@@ -78,22 +60,111 @@ def _normalized_weights(
     return {signal: round(weight / total, 6) for signal, weight in merged.items()}
 
 
-def list_profiles() -> list[ProfileSummaryResponse]:
-    return [
-        ProfileSummaryResponse(
-            preset=preset,
-            label=profile["label"],
-            description=profile["description"],
+def _load_scoring_profiles_config() -> dict[str, Any]:
+    candidate_paths: list[Path] = []
+    configured_path = os.getenv("SCORING_PROFILES_PATH")
+    if configured_path:
+        candidate_paths.append(Path(configured_path))
+    candidate_paths.extend(
+        [
+            Path("backend/config/scoring_profiles.yaml"),
+            Path("config/scoring_profiles.yaml"),
+            Path(__file__).resolve().parents[2] / "config/scoring_profiles.yaml",
+        ]
+    )
+
+    for path in candidate_paths:
+        if path.exists():
+            loaded = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            if not isinstance(loaded, dict):
+                raise ValueError("scoring_profiles.yaml must be a mapping at the root.")
+            return loaded
+    raise ValueError("No scoring profile config found at backend/config/scoring_profiles.yaml.")
+
+
+def _validate_profile_definition(
+    profile_id: str, profile: dict[str, Any]
+) -> tuple[dict[str, float], list[str]]:
+    configured_profile_id = profile.get("profile_id")
+    if not isinstance(configured_profile_id, str) or not configured_profile_id:
+        raise ValueError(f"Profile '{profile_id}' must define profile_id.")
+    if configured_profile_id != profile_id:
+        raise ValueError(
+            f"Profile key '{profile_id}' must match profile_id '{configured_profile_id}'."
         )
-        for preset, profile in _PROFILE_LIBRARY.items()
-    ]
+
+    weights_raw = profile.get("weights")
+    enabled_signals_raw = profile.get("enabled_signals")
+    if not isinstance(weights_raw, dict) or not weights_raw:
+        raise ValueError(f"Profile '{profile_id}' must define non-empty weights.")
+    if not isinstance(enabled_signals_raw, list) or not enabled_signals_raw:
+        raise ValueError(f"Profile '{profile_id}' must define enabled_signals.")
+
+    weights: dict[str, float] = {str(k): float(v) for k, v in weights_raw.items()}
+    enabled_signals = [str(signal) for signal in enabled_signals_raw]
+    unknown_signals = set(weights) | set(enabled_signals)
+    unknown_signals = unknown_signals - SUPPORTED_SIGNALS
+    if unknown_signals:
+        raise ValueError(
+            f"Profile '{profile_id}' references unsupported signal(s): "
+            f"{', '.join(sorted(unknown_signals))}"
+        )
+
+    enabled_set = set(enabled_signals)
+    if set(weights) != enabled_set:
+        raise ValueError(f"Profile '{profile_id}' weights must exactly match enabled_signals.")
+    if any(weight <= 0 for weight in weights.values()):
+        raise ValueError(f"Profile '{profile_id}' weights must be positive.")
+    return weights, enabled_signals
+
+
+def _get_profile_config(preset: StrategyPreset) -> tuple[str, dict[str, Any]]:
+    config = _load_scoring_profiles_config()
+    profiles = config.get("profiles")
+    preset_alias_mapping = config.get("preset_alias_mapping")
+    if not isinstance(profiles, dict):
+        raise ValueError("scoring_profiles config must define a 'profiles' mapping.")
+    if not isinstance(preset_alias_mapping, dict):
+        raise ValueError("scoring_profiles config must define a 'preset_alias_mapping' mapping.")
+
+    profile_id = preset_alias_mapping.get(preset.value)
+    if not isinstance(profile_id, str) or not profile_id:
+        raise ValueError(f"No profile mapping configured for preset '{preset.value}'.")
+
+    profile = profiles.get(profile_id)
+    if not isinstance(profile, dict):
+        raise ValueError(f"Preset '{preset.value}' maps to missing profile '{profile_id}'.")
+    return profile_id, profile
+
+
+def list_profiles() -> list[ProfileSummaryResponse]:
+    config = _load_scoring_profiles_config()
+    alias_mapping = config.get("preset_alias_mapping", {})
+    profiles = config.get("profiles", {})
+    responses: list[ProfileSummaryResponse] = []
+    for preset in StrategyPreset:
+        profile_id = alias_mapping.get(preset.value)
+        if not isinstance(profile_id, str):
+            raise ValueError(f"No profile mapping configured for preset '{preset.value}'.")
+        profile = profiles.get(profile_id)
+        if not isinstance(profile, dict):
+            raise ValueError(f"Preset '{preset.value}' maps to missing profile '{profile_id}'.")
+        responses.append(
+            ProfileSummaryResponse(
+                preset=preset,
+                label=str(profile.get("label", profile_id)),
+                description=str(profile.get("description", "")),
+            )
+        )
+    return responses
 
 
 def resolve_profile(
     preset: StrategyPreset, weight_overrides: dict[str, float] | None = None
 ) -> ProfileDetailResponse:
-    profile = _PROFILE_LIBRARY[preset]
-    default_weights: dict[str, float] = profile["default_weights"]
+    profile_id, profile = _get_profile_config(preset)
+    configured_weights, enabled_signals = _validate_profile_definition(profile_id, profile)
+    default_weights = _normalized_weights(configured_weights, {})
     safe_bounds = _safe_override_bounds(default_weights)
     requested_overrides = weight_overrides or {}
 
@@ -114,10 +185,10 @@ def resolve_profile(
     normalized = _normalized_weights(default_weights, requested_overrides)
     return ProfileDetailResponse(
         preset=preset,
-        profile_id=f"{PLACEHOLDER_PROFILE_ID_PREFIX}-{preset.value}",
+        profile_id=profile_id,
         profile_version=PLACEHOLDER_PROFILE_VERSION,
         default_weights=normalized,
-        enabled_signals=profile["enabled_signals"],
+        enabled_signals=enabled_signals,
         safe_override_bounds=safe_bounds,
     )
 

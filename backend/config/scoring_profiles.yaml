@@ -1,0 +1,72 @@
+profiles:
+  rental_income_default:
+    profile_id: "rental_income_default"
+    label: "Rental Income Focus"
+    description: "Prioritize sustainable cash-yield characteristics."
+    enabled_signals:
+      - roi_proxy
+      - price_vs_comp
+      - confidence
+      - time_on_market
+    weights:
+      roi_proxy: 0.50
+      price_vs_comp: 0.25
+      confidence: 0.15
+      time_on_market: 0.10
+
+  resale_arbitrage_default:
+    profile_id: "resale_arbitrage_default"
+    label: "Resale/Arbitrage Focus"
+    description: "Prioritize discount-to-comps and resale friction signals."
+    enabled_signals:
+      - price_vs_comp
+      - size_vs_comp
+      - time_on_market
+      - confidence
+    weights:
+      price_vs_comp: 0.45
+      size_vs_comp: 0.25
+      time_on_market: 0.20
+      confidence: 0.10
+
+  refurbishment_value_add_default:
+    profile_id: "refurbishment_value_add_default"
+    label: "Refurbishment/Value-Add Focus"
+    description: "Prioritize value gaps with enough confidence to execute."
+    enabled_signals:
+      - price_vs_comp
+      - size_vs_comp
+      - time_on_market
+      - roi_proxy
+      - confidence
+    weights:
+      price_vs_comp: 0.35
+      size_vs_comp: 0.25
+      time_on_market: 0.20
+      roi_proxy: 0.10
+      confidence: 0.10
+
+  balanced_long_term_default:
+    profile_id: "balanced_long_term_default"
+    label: "Balanced Long-Term Hold"
+    description: "Balance yield, quality, and comp-based valuation."
+    enabled_signals:
+      - price_vs_comp
+      - roi_proxy
+      - size_vs_comp
+      - feature_value
+      - confidence
+      - time_on_market
+    weights:
+      price_vs_comp: 0.24
+      roi_proxy: 0.24
+      size_vs_comp: 0.16
+      feature_value: 0.16
+      confidence: 0.10
+      time_on_market: 0.10
+
+preset_alias_mapping:
+  rental_income: rental_income_default
+  resale_arbitrage: resale_arbitrage_default
+  refurbishment_value_add: refurbishment_value_add_default
+  balanced_long_term: balanced_long_term_default
