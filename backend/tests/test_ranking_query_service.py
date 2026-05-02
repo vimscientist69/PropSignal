@@ -3,6 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from app.models.ranking_run import RankingRun
+from app.models.scoring_profile_backup import ScoringProfileBackup
 from app.schemas.ranking import RankingQueryRequest, StrategyPreset
 from app.services.ranking_query import (
     get_listing_detail,
@@ -101,7 +103,7 @@ def test_run_ranking_query_is_deterministic_for_same_request() -> None:
     request = RankingQueryRequest.model_validate(_request_payload())
     first = run_ranking_query(request)
     second = run_ranking_query(request)
-    assert first.run_id == second.run_id
+    assert first.run_id != second.run_id
     assert first.query_fingerprint == second.query_fingerprint
     assert first.dataset_context.model_version == "advanced_v2"
     assert first.dataset_context.profile_version == "v1"
@@ -123,3 +125,34 @@ def test_get_listing_detail_returns_expected_metadata() -> None:
     assert detail.listing_core["listing_id"] == 123
     assert detail.score_summary["model_version"] == "advanced_v2"
     assert detail.score_summary["profile_version"] == "v1"
+
+
+def test_run_ranking_query_persists_profile_and_run(db_session) -> None:
+    request = RankingQueryRequest.model_validate(_request_payload())
+    response = run_ranking_query(request, db=db_session)
+
+    run = db_session.query(RankingRun).filter(RankingRun.run_id == response.run_id).one_or_none()
+    assert run is not None
+    assert run.resolved_profile_id == "rental_income_default"
+    assert run.result_count == 1
+
+    backup = (
+        db_session.query(ScoringProfileBackup)
+        .filter(ScoringProfileBackup.id == run.profile_row_id)
+        .one_or_none()
+    )
+    assert backup is not None
+    assert backup.profile_id == "rental_income_default"
+
+
+def test_run_ranking_query_reuses_equivalent_profile_backup(db_session) -> None:
+    request = RankingQueryRequest.model_validate(_request_payload())
+    first = run_ranking_query(request, db=db_session)
+    second = run_ranking_query(request, db=db_session)
+
+    first_run = db_session.query(RankingRun).filter(RankingRun.run_id == first.run_id).one()
+    second_run = db_session.query(RankingRun).filter(RankingRun.run_id == second.run_id).one()
+    assert first_run.profile_row_id == second_run.profile_row_id
+
+    backup_count = db_session.query(ScoringProfileBackup).count()
+    assert backup_count == 1

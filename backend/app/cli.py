@@ -188,7 +188,8 @@ def rank_query(
     }
     try:
         request = RankingQueryRequest.model_validate(request_payload)
-        response = run_ranking_query(request)
+        with SessionLocal() as db:
+            response = run_ranking_query(request, db=db)
     except ValidationError as exc:
         raise typer.BadParameter(exc.json()) from exc
     except ValueError as exc:

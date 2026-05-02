@@ -3,8 +3,27 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
 from app.cli import app
+from app.db.base import Base
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
 from typer.testing import CliRunner
+
+
+class _TestSessionLocal:
+    def __init__(self, session: Session):
+        self._session = session
+
+    def __call__(self) -> _TestSessionLocal:
+        return self
+
+    def __enter__(self) -> Session:
+        return self._session
+
+    def __exit__(self, exc_type, exc, tb) -> bool:
+        self._session.rollback()
+        return False
 
 
 def _parse_json_from_output(stdout: str) -> dict:
@@ -15,9 +34,16 @@ def _parse_json_from_output(stdout: str) -> dict:
     raise AssertionError("Expected JSON object in CLI output.")
 
 
-def test_rank_query_runs_with_schema_aligned_payload(tmp_path: Path) -> None:
+def test_rank_query_runs_with_schema_aligned_payload(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     runner = CliRunner()
     output_file = tmp_path / "ranking-response.json"
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session_local = sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=Session)
+    session = session_local()
+    monkeypatch.setattr("app.cli.SessionLocal", _TestSessionLocal(session))
 
     result = runner.invoke(
         app,

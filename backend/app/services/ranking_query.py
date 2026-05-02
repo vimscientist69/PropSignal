@@ -5,9 +5,14 @@ import json
 import os
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 import yaml
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
+from app.models.ranking_run import RankingRun
+from app.models.scoring_profile_backup import ScoringProfileBackup
 from app.schemas.ranking import (
     DatasetContext,
     ListingDetailResponse,
@@ -37,6 +42,10 @@ SUPPORTED_SIGNALS = {
 def _stable_json_hash(payload: dict[str, Any]) -> str:
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
     return digest[:12]
+
+
+def _stable_json_digest(payload: dict[str, Any]) -> str:
+    return hashlib.sha256(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 def _safe_override_bounds(default_weights: dict[str, float]) -> dict[str, dict[str, float]]:
@@ -193,10 +202,58 @@ def resolve_profile(
     )
 
 
-def run_ranking_query(request: RankingQueryRequest) -> RankingQueryResponse:
+def _persist_ranking_run(
+    db: Session,
+    *,
+    run_id: str,
+    query_fingerprint: str,
+    request_payload: dict[str, Any],
+    profile: ProfileDetailResponse,
+    result_count: int,
+) -> None:
+    profile_payload = {
+        "profile_id": profile.profile_id,
+        "profile_version": profile.profile_version,
+        "enabled_signals": profile.enabled_signals,
+        "default_weights": profile.default_weights,
+        "safe_override_bounds": profile.safe_override_bounds,
+    }
+    profile_fingerprint = _stable_json_digest(profile_payload)
+    backup = db.scalar(
+        select(ScoringProfileBackup).where(
+            ScoringProfileBackup.profile_fingerprint == profile_fingerprint
+        )
+    )
+    if backup is None:
+        backup = ScoringProfileBackup(
+            profile_id=profile.profile_id,
+            profile_fingerprint=profile_fingerprint,
+            profile_payload=profile_payload,
+        )
+        db.add(backup)
+        db.flush()
+
+    db.add(
+        RankingRun(
+            run_id=run_id,
+            query_fingerprint=query_fingerprint,
+            strategy_preset=request_payload["strategy"]["preset"],
+            resolved_profile_id=profile.profile_id,
+            profile_row_id=backup.id,
+            request_payload=request_payload,
+            result_window=request_payload["result_window"],
+            result_count=result_count,
+        )
+    )
+    db.commit()
+
+
+def run_ranking_query(
+    request: RankingQueryRequest, db: Session | None = None
+) -> RankingQueryResponse:
     request_payload = request.model_dump(mode="json")
     query_fingerprint = _stable_json_hash(request_payload)
-    run_id = f"placeholder-run-{query_fingerprint}"
+    run_id = f"run-{uuid4().hex[:12]}"
 
     profile = resolve_profile(request.strategy.preset, request.strategy.weight_overrides)
     resolved_profile = ResolvedProfile(
@@ -247,6 +304,16 @@ def run_ranking_query(request: RankingQueryRequest) -> RankingQueryResponse:
             page=page,
             page_size=page_size,
             total_count=len(results),
+        )
+
+    if db is not None:
+        _persist_ranking_run(
+            db,
+            run_id=run_id,
+            query_fingerprint=query_fingerprint,
+            request_payload=request_payload,
+            profile=profile,
+            result_count=len(results),
         )
 
     return RankingQueryResponse(
