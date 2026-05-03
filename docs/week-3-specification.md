@@ -401,6 +401,8 @@ Acceptance criteria for dashboard slice:
 
 ## 13) Rollout Plan
 
+---
+
 ### Phase A: Contract + skeleton
 
 - define request/response schemas,
@@ -474,6 +476,9 @@ Acceptance criteria for dashboard slice:
 - Profile discovery and resolution work end-to-end with validated overrides.
 - Placeholder API/CLI flows run successfully, enabling Phase B logic implementation without contract churn.
 
+current agent work
+---
+
 ### Phase B: Query + ranking implementation
 
 - implement filtered candidate retrieval and rank execution,
@@ -491,6 +496,67 @@ Acceptance criteria for dashboard slice:
 - integrate API latency into performance baseline artifacts,
 - optimize indexes/query plans for hot paths,
 - complete required tests and docs updates.
+
+## 13.1) Implementation delta checklist
+
+Living checklist of **outstanding work** versus the current codebase and companion doc
+`docs/week-3-profile-preset-management-spec.md`. Update checkboxes as items ship.
+
+### API and error contract
+
+- [ ] Mount Week 3 routers on the FastAPI app (`POST /api/v1/rankings/query`,
+      `GET /api/v1/rankings/{run_id}/listings/{listing_id}`,
+      `GET /api/v1/scoring/profiles`, `GET /api/v1/scoring/profiles/{preset}`).
+- [ ] Keep handlers thin: parse → shared services → response models (same path as CLI).
+- [ ] Implement consistent API error envelope (`code`, `message`, `field_errors`, `request_id`)
+      for validation and not-found paths.
+
+### Ranking pipeline (Phase B core)
+
+- [ ] Resolve `dataset_sources` to ingestion/scoring inputs (merged cohort when multiple sources).
+- [ ] Implement filter pipeline (province/city/suburb, budget, property fields, `confidence_min`,
+      pagination / `top_n` per §3.2).
+- [ ] Execute real rank/score using resolved strategy weights (no duplicate scoring logic in
+      frontend); deterministic tie-break (`listing_id` secondary sort).
+- [ ] Replace placeholder `results[]`, `records_considered`, and freshness fields with real
+      dataset-derived values.
+
+### Run persistence and detail reproducibility
+
+- [ ] Persist per-run listing references (or equivalent) so `detail_ref` and detail retrieval match
+      the ranked set (resolve open decision in §15: full rows vs reconstruct-on-demand).
+- [ ] Return reproducibility fields on rank response as required (e.g. `profile_row_id` /
+      resolved profile linkage aligned with `week-3-profile-preset-management-spec.md` §7–9).
+- [ ] Implement `get_listing_detail` from stored run + listing context (signal breakdown, comps
+      path, ROI assumptions, risk flags per §4.2).
+
+### CLI parity
+
+- [ ] Confirm CLI uses the same request models and service entrypoints as HTTP API once routes
+      exist (already aligned for rank-query path; re-verify after API lands).
+
+### Performance and hardening (Phase D)
+
+- [ ] Move ranking/list/detail API latency from `deferred` to measured in baseline artifacts
+      (`backend/app/services/performance_baseline.py` + tests).
+- [ ] Add or tune indexes for hot filter/ranking query paths as needed.
+
+### Dashboard (Phase C)
+
+- [ ] Dataset/source selection and multi-select (`select_all` / `clear_all`) wired to real
+      sources or upload flow per §3.0.
+- [ ] Job status + validation summary panel.
+- [ ] Filter + strategy controls (preset, request-scoped overrides with bound feedback, reset).
+- [ ] Ranked results surface and listing detail panel/drawer (same request schema as
+      `POST /api/v1/rankings/query`; no profile CRUD in UI).
+- [ ] Visible run metadata strip (`run_id`, model/profile identifiers, freshness per §3.0).
+
+### Documentation
+
+- [ ] Update `docs/week-3-profile-preset-management-spec.md` config sketch if signal names stay
+      aligned with production `scoring_profiles.yaml` (avoid doc/code drift).
+- [ ] Refresh `.cursor/rules/PROJECT_NOTE.md` (or equivalent) with API usage and migration notes
+      when persistence and routes are complete.
 
 ## 14) Definition of Done (Week 3)
 
