@@ -401,8 +401,6 @@ Acceptance criteria for dashboard slice:
 
 ## 13) Rollout Plan
 
----
-
 ### Phase A: Contract + skeleton
 
 - define request/response schemas,
@@ -476,14 +474,98 @@ Acceptance criteria for dashboard slice:
 - Profile discovery and resolution work end-to-end with validated overrides.
 - Placeholder API/CLI flows run successfully, enabling Phase B logic implementation without contract churn.
 
-current agent work
 ---
 
 ### Phase B: Query + ranking implementation
 
-- implement filtered candidate retrieval and rank execution,
-- persist run metadata and references,
-- return summary payload.
+Replace placeholder ranking and detail responses with a real **filter → score → rank → persist**
+pipeline while keeping §4–5 request/response contracts stable (extend fields only when the spec
+already allows optional metadata; avoid renaming shipped keys).
+
+#### Phase B implementation steps (execution order)
+
+1. Close §15 open decisions needed for implementation (record the outcomes in this doc or
+   `docs/week-3-profile-preset-management-spec.md`).
+   - Persisted listing references vs reconstruct-on-demand for `detail_ref` and detail retrieval.
+   - Confirm synchronous ranking for Week 3 vs queue-backed execution (if deferred, document the
+     cap and failure mode).
+   - Confirm override clamp policy matches resolver behavior (proportional caps already in
+     `resolve_profile`; align docs if you change semantics).
+
+2. Resolve `dataset_sources` to a merged candidate input set.
+   - Map each source string to ingestion/scoring inputs (existing Week 2 tables or equivalent).
+   - Union/dedupe listings across sources into one cohort with deterministic ordering before
+     filtering (document tie-break, e.g. `listing_id`).
+   - Populate `dataset_context.selected_sources`, real `records_considered` (pre-window count),
+     and freshness fields (`last_ingested_at`, `last_scored_at`, `model_version`, profile/version
+     identifiers) per §3.1 and §4.1.
+
+3. Implement the filter pipeline on the merged cohort.
+   - Apply §3.2 filters: `province`, `city`, `suburb`, `price_min` / `price_max`, `property_type`,
+     `bedrooms_min`, `bathrooms_min`, `confidence_min`.
+   - Enforce the same bounds as schema validation (non-negative numerics, `price_min <= price_max`,
+     `page >= 1`, `1 <= page_size <= 100`, `top_n` cap, mutual exclusivity rules for `top_n` vs
+     pagination).
+   - Build queries with bound parameters only (no string-concatenated SQL for user input).
+   - Add unit tests for filter edge cases (empty result set, boundary values, incompatible
+     window combinations).
+
+4. Execute scoring and ranking using resolved strategy weights.
+   - Call existing Week 2 / scoring evaluation paths with the **normalized** weights from
+     `resolve_profile` (no second scoring implementation in API handlers or frontend).
+   - Produce per-listing outputs required by §4.1 `results[]` (`listing_id`, `score`, `deal_reason`,
+     `confidence`, summary map, `detail_ref`).
+   - Sort by score descending with **deterministic** secondary sort on `listing_id`.
+   - Apply `result_window`: either first `top_n` after full filtered ranking, or slice by
+     `page` / `page_size` against the filtered ranked list (per §3.2).
+
+5. Persist run metadata and per-run listing references.
+   - Extend or use `RankingRun` (and related tables) so each run stores enough to reproduce the
+     ranked set and to resolve listing detail: at minimum `run_id`, `query_fingerprint`, strategy
+     snapshot, resolved profile linkage (`profile_row_id` / fingerprint per profile preset doc
+     §7–9), `request_payload`, window, `result_count`, and stable references for each returned
+     row (or a reproducible reconstruction key).
+   - Ensure `detail_ref` returned in `results[]` matches what `get_listing_detail` will resolve.
+
+6. Replace placeholder service bodies in `run_ranking_query` and `get_listing_detail`.
+   - `run_ranking_query`: return real `results[]`, pagination/`top_n` envelopes aligned with actual
+     totals, and accurate `dataset_context`.
+   - `get_listing_detail`: load run by `run_id`, validate `listing_id` was part of that run’s
+     result set (404 when run missing **or** listing not in run); return §4.2 payload with signal
+     breakdown, cohort/comps context, ROI components, risk flags, and scoring metadata including
+     `profile_id` where specified.
+   - Align CLI `listing-detail` with API behavior (same 404 rules via shared service or shared
+     guard).
+
+7. Error mapping and operational clarity.
+   - Add stable `code` values for new failure modes (e.g. unknown dataset source, empty cohort post-
+     filter, scoring failure) using the §4.4 envelope.
+   - Log structured context (`run_id`, `query_fingerprint`, source list) without leaking secrets.
+
+8. Tests for Phase B scope.
+   - Unit: deterministic ordering, pagination vs `top_n`, filter combinations, profile-weight
+     application to score inputs (mocked where appropriate).
+   - Integration: API rank query with one and multiple sources; detail retrieval for a listing
+     returned in a rank response; CLI output shape parity for equivalent inputs (§11.2).
+   - Regression: Week 2 scoring contracts unchanged for non-ranking entrypoints (§11.4).
+
+9. Deliver Phase B verification gate.
+   - `./scripts/lint.sh` and `./scripts/test.sh` pass.
+   - `npm --prefix frontend run build` if any shared types or frontend contracts are touched.
+   - Update §13.1 checkboxes for “Ranking pipeline” and “Run persistence and detail reproducibility”
+     rows as items land; refresh companion profile doc if signal names or persistence fields shift.
+
+#### Phase B done criteria (must be true before Phase C)
+
+- Rank query returns **real** ranked rows derived from selected sources and filters, not
+  placeholders; `dataset_context` reflects actual inputs and counts.
+- Sorting and windowing behave per §3.2 with deterministic tie-break.
+- Each persisted run can answer listing detail for any `listing_id` in that run’s returned page
+  window, with API and CLI returning consistent 404 semantics.
+- No duplicate scoring or profile logic in the dashboard or route handlers; strategy remains
+  centralized in backend services.
+- Phase B tests above are in place and green; known limitations (sync caps, max `top_n`) are
+  documented if not fully mitigated.
 
 ### Phase C: Dashboard + detail + profile APIs/CLI
 
