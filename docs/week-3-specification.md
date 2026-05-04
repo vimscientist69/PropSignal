@@ -482,6 +482,8 @@ Replace placeholder ranking and detail responses with a real **filter → score 
 pipeline while keeping §4–5 request/response contracts stable (extend fields only when the spec
 already allows optional metadata; avoid renaming shipped keys).
 
+---
+
 #### Phase B implementation steps (execution order)
 
 1. Close §15 open decisions needed for implementation (record the outcomes in this doc or
@@ -567,6 +569,36 @@ already allows optional metadata; avoid renaming shipped keys).
 - Phase B tests above are in place and green; known limitations (sync caps, max `top_n`) are
   documented if not fully mitigated.
 
+#### Phase B verification notes (duplicate-logic guard + limitations)
+
+**Centralized strategy (§567–568)** — Verified in repo:
+
+- Week 3 HTTP handlers in `backend/app/api/routes_ranking.py` only parse requests, call
+  `app.services.ranking_query` (and `resolve_profile` for GET preset), and map errors; they do not
+  implement signal math, weights, or profile YAML resolution.
+- Ranking math uses `app.services.ranking_signals` (advanced_v2 signal path aligned with
+  `app.services.scoring`) plus `resolve_profile` weights; the CLI uses the same service entrypoints
+  as the API (`run_ranking_query`, `get_listing_detail`, `list_profiles`, `resolve_profile`).
+- The current dashboard (`frontend/src/app/page.tsx`) is scaffold-only (health check); it performs
+  **no** ranking, preset resolution, or weight validation. Phase C UI must keep strategy and
+  scoring **server-side** and call these APIs only (per §3 dashboard constraints).
+
+**Tests and quality gate (§569–570)** — Required scripts are green in CI/local: `./scripts/lint.sh`,
+`./scripts/test.sh` (includes `test_ranking_*` for filters, merge, rank/detail, CLI parity). Run
+`npm --prefix frontend run build` when frontend files change.
+
+**Known limitations (sync / caps)** — Not fully mitigated in Phase B; callers should assume:
+
+- **Synchronous ranking:** each `POST .../rankings/query` loads the merged cohort, filters, scores
+  every filtered row, sorts, slices, and persists in the **same request**; there is no job queue or
+  worker offload. Very large merged sets increase latency and memory use linearly with cohort size
+  before windowing.
+- **Hard caps (schema §3.2):** `top_n` ≤ 500, `page_size` ≤ 100, `page` ≥ 1; requests outside these
+  bounds are rejected at validation (422). These caps bound worst-case response size, not total
+  scoring work (the service still scores the full filtered list before applying `top_n` or
+  pagination).
+- **No rate limiting** on rank query in Phase B (defer to hardening / infra as needed).
+
 ### Phase C: Dashboard + detail + profile APIs/CLI
 
 - implement dashboard workflow UI and wire it to ranking/detail/profile APIs,
@@ -586,35 +618,37 @@ Living checklist of **outstanding work** versus the current codebase and compani
 
 ### API and error contract
 
-- [ ] Mount Week 3 routers on the FastAPI app (`POST /api/v1/rankings/query`,
+- [x] Mount Week 3 routers on the FastAPI app (`POST /api/v1/rankings/query`,
       `GET /api/v1/rankings/{run_id}/listings/{listing_id}`,
       `GET /api/v1/scoring/profiles`, `GET /api/v1/scoring/profiles/{preset}`).
-- [ ] Keep handlers thin: parse → shared services → response models (same path as CLI).
-- [ ] Implement consistent API error envelope (`code`, `message`, `field_errors`, `request_id`)
+- [x] Keep handlers thin: parse → shared services → response models (same path as CLI).
+- [x] Implement consistent API error envelope (`code`, `message`, `field_errors`, `request_id`)
       for validation and not-found paths.
 
 ### Ranking pipeline (Phase B core)
 
-- [ ] Resolve `dataset_sources` to ingestion/scoring inputs (merged cohort when multiple sources).
-- [ ] Implement filter pipeline (province/city/suburb, budget, property fields, `confidence_min`,
+- [x] Resolve `dataset_sources` to ingestion/scoring inputs (merged cohort when multiple sources).
+- [x] Implement filter pipeline (province/city/suburb, budget, property fields, `confidence_min`,
       pagination / `top_n` per §3.2).
-- [ ] Execute real rank/score using resolved strategy weights (no duplicate scoring logic in
+- [x] Execute real rank/score using resolved strategy weights (no duplicate scoring logic in
       frontend); deterministic tie-break (`listing_id` secondary sort).
-- [ ] Replace placeholder `results[]`, `records_considered`, and freshness fields with real
+- [x] Replace placeholder `results[]`, `records_considered`, and freshness fields with real
       dataset-derived values.
 
 ### Run persistence and detail reproducibility
 
-- [ ] Persist per-run listing references (or equivalent) so `detail_ref` and detail retrieval match
+- [x] Persist per-run listing references (or equivalent) so `detail_ref` and detail retrieval match
       the ranked set (resolve open decision in §15: full rows vs reconstruct-on-demand).
 - [ ] Return reproducibility fields on rank response as required (e.g. `profile_row_id` /
       resolved profile linkage aligned with `week-3-profile-preset-management-spec.md` §7–9).
-- [ ] Implement `get_listing_detail` from stored run + listing context (signal breakdown, comps
+      (`profile_row_id` is stored on `ranking_runs` and reused for detail persistence; exposing it
+      on the public JSON response is still optional / follow-up.)
+- [x] Implement `get_listing_detail` from stored run + listing context (signal breakdown, comps
       path, ROI assumptions, risk flags per §4.2).
 
 ### CLI parity
 
-- [ ] Confirm CLI uses the same request models and service entrypoints as HTTP API once routes
+- [x] Confirm CLI uses the same request models and service entrypoints as HTTP API once routes
       exist (already aligned for rank-query path; re-verify after API lands).
 
 ### Performance and hardening (Phase D)
@@ -665,3 +699,16 @@ Week 3 is complete when all conditions hold:
 - Whether ranking query execution should be synchronous now or queue-backed for larger payloads.
 
 Resolve these before Phase B implementation to avoid rework.
+
+### 15.1) Phase B implementation resolutions (shipped)
+
+- **Endpoints:** keep the Phase A `/api/v1/rankings/...` and `/api/v1/scoring/profiles/...` layout.
+- **Run listing references:** persist `ranking_run_listings` rows for each listing in the **returned**
+  result window, storing an `explanation_snapshot` JSON for diagnostics; `listing_core` fields are
+  re-read from `listings` at detail time (404 if the listing row was deleted).
+- **Override clamp:** unchanged — proportional ±20% per signal in `resolve_profile`, then normalize.
+- **Execution model:** synchronous in-process ranking for Week 3; queue-backed execution stays out
+  of scope until explicitly revisited.
+- **`dataset_sources` resolution:** each entry is either a numeric ingestion job id (`"42"` or
+  `job:42`), or an exact match on `ingestion_jobs.input_path` (first row by id). Sources are merged
+  with deterministic dedupe by `listings.source_hash` (first `(job_id, listing.id)` wins).

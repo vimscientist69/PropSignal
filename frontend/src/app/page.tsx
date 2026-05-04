@@ -1,5 +1,8 @@
 import styles from "./page.module.css";
 
+// Week 3+: keep ranking, presets, and weight logic on the backend; call APIs from here only
+// (no client-side scoring — see docs/week-3-specification.md §3 and Phase B verification notes).
+
 type HealthResponse = {
   status: string;
 };

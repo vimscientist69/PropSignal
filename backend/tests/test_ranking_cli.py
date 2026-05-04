@@ -10,6 +10,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from typer.testing import CliRunner
 
+from tests.ranking_test_seed import seed_two_job_ranking_dataset
+
 
 class _TestSessionLocal:
     def __init__(self, session: Session):
@@ -43,6 +45,7 @@ def test_rank_query_runs_with_schema_aligned_payload(
     Base.metadata.create_all(engine)
     session_local = sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=Session)
     session = session_local()
+    seed_two_job_ranking_dataset(session)
     monkeypatch.setattr("app.cli.SessionLocal", _TestSessionLocal(session))
 
     result = runner.invoke(
@@ -50,9 +53,9 @@ def test_rank_query_runs_with_schema_aligned_payload(
         [
             "rank-query",
             "--dataset-source",
-            "sample-a",
+            "1",
             "--dataset-source",
-            "sample-b",
+            "2",
             "--strategy-preset",
             "rental_income",
             "--city",
@@ -72,7 +75,7 @@ def test_rank_query_runs_with_schema_aligned_payload(
     assert "Ranking completed: run_id=" in result.stdout
     payload = _parse_json_from_output(result.stdout)
     assert payload["resolved_profile"]["profile_id"] == "rental_income_default"
-    assert payload["dataset_context"]["selected_sources"] == ["sample-a", "sample-b"]
+    assert payload["dataset_context"]["selected_sources"] == ["1", "2"]
     assert output_file.exists()
 
 
@@ -83,7 +86,7 @@ def test_rank_query_rejects_invalid_weight_override_format() -> None:
         [
             "rank-query",
             "--dataset-source",
-            "sample-a",
+            "1",
             "--strategy-preset",
             "rental_income",
             "--weight-override",
@@ -94,17 +97,42 @@ def test_rank_query_rejects_invalid_weight_override_format() -> None:
     assert result.exit_code == 2
 
 
-def test_listing_detail_outputs_payload() -> None:
+def test_listing_detail_outputs_payload(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     runner = CliRunner()
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    Base.metadata.create_all(engine)
+    session_local = sessionmaker(bind=engine, autocommit=False, autoflush=False, class_=Session)
+    session = session_local()
+    seed_two_job_ranking_dataset(session)
+    monkeypatch.setattr("app.cli.SessionLocal", _TestSessionLocal(session))
+
+    out_rank = tmp_path / "rank.json"
+    rank = runner.invoke(
+        app,
+        [
+            "rank-query",
+            "--dataset-source",
+            "1",
+            "--strategy-preset",
+            "rental_income",
+            "--output-json",
+            str(out_rank),
+        ],
+    )
+    assert rank.exit_code == 0
+    rank_payload = json.loads(out_rank.read_text(encoding="utf-8"))
+    run_id = rank_payload["run_id"]
+    listing_id = rank_payload["results"][0]["listing_id"]
+
     result = runner.invoke(
         app,
-        ["listing-detail", "--run-id", "placeholder-run-abc", "--listing-id", "123"],
+        ["listing-detail", "--run-id", run_id, "--listing-id", str(listing_id)],
     )
     assert result.exit_code == 0
     assert "Listing detail loaded" in result.stdout
     payload = _parse_json_from_output(result.stdout)
-    assert payload["listing_core"]["run_id"] == "placeholder-run-abc"
-    assert payload["listing_core"]["listing_id"] == 123
+    assert payload["listing_core"]["run_id"] == run_id
+    assert payload["listing_core"]["listing_id"] == listing_id
 
 
 def test_profiles_list_outputs_profiles_array() -> None:

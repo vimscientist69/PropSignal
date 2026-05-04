@@ -3,15 +3,20 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 import yaml
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.models.ingestion_job import IngestionJob
+from app.models.listing import Listing
 from app.models.ranking_run import RankingRun
+from app.models.ranking_run_listing import RankingRunListing
+from app.models.score_result import ScoreResult
 from app.models.scoring_profile_backup import ScoringProfileBackup
 from app.schemas.ranking import (
     DatasetContext,
@@ -26,9 +31,12 @@ from app.schemas.ranking import (
     StrategyPreset,
     TopNEnvelope,
 )
+from app.services.dataset_sources import merge_listings_for_jobs, resolve_dataset_sources_to_job_ids
+from app.services.ranking_filters import apply_ranking_filters
+from app.services.ranking_signals import score_listing_with_strategy_weights
 
-PLACEHOLDER_MODEL_VERSION = "advanced_v2"
 PLACEHOLDER_PROFILE_VERSION = "v1"
+MODEL_VERSION = "advanced_v2"
 SUPPORTED_SIGNALS = {
     "price_vs_comp",
     "size_vs_comp",
@@ -37,6 +45,18 @@ SUPPORTED_SIGNALS = {
     "confidence",
     "roi_proxy",
 }
+
+
+class RankingListingNotInRun(LookupError):
+    """Raised when listing_id was not returned in the run's result window."""
+
+
+class RankingRunNotFound(LookupError):
+    """Raised when no persisted ranking run matches run_id."""
+
+
+class RankingListingRowMissing(LookupError):
+    """Raised when the listing row was deleted after the run was stored."""
 
 
 def _stable_json_hash(payload: dict[str, Any]) -> str:
@@ -202,7 +222,41 @@ def resolve_profile(
     )
 
 
-def _persist_ranking_run(
+@dataclass
+class _ScoredRow:
+    listing: Listing
+    score: float
+    confidence: float
+    deal_reason: str
+    explanation: dict[str, Any]
+
+
+def _freshness_iso(db: Session, job_ids: list[int]) -> tuple[str | None, str | None]:
+    jobs: list[IngestionJob] = []
+    for jid in job_ids:
+        job = db.get(IngestionJob, jid)
+        if job is not None:
+            jobs.append(job)
+    ingested_times = [j.finished_at for j in jobs if j.finished_at]
+    last_ingested = max(ingested_times) if ingested_times else None
+    last_scored = db.scalar(
+        select(func.max(ScoreResult.created_at)).where(ScoreResult.job_id.in_(job_ids))
+    )
+
+    def _iso(dt: Any) -> str | None:
+        if dt is None:
+            return None
+        from datetime import UTC
+
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.replace(tzinfo=UTC)
+        text = dt.isoformat()
+        return text.replace("+00:00", "Z")
+
+    return _iso(last_ingested), _iso(last_scored)
+
+
+def _persist_ranking_run_with_listings(
     db: Session,
     *,
     run_id: str,
@@ -210,7 +264,8 @@ def _persist_ranking_run(
     request_payload: dict[str, Any],
     profile: ProfileDetailResponse,
     result_count: int,
-) -> None:
+    scored_rows: list[_ScoredRow],
+) -> RankingRun:
     profile_payload = {
         "profile_id": profile.profile_id,
         "profile_version": profile.profile_version,
@@ -233,24 +288,42 @@ def _persist_ranking_run(
         db.add(backup)
         db.flush()
 
-    db.add(
-        RankingRun(
-            run_id=run_id,
-            query_fingerprint=query_fingerprint,
-            strategy_preset=request_payload["strategy"]["preset"],
-            resolved_profile_id=profile.profile_id,
-            profile_row_id=backup.id,
-            request_payload=request_payload,
-            result_window=request_payload["result_window"],
-            result_count=result_count,
-        )
+    run = RankingRun(
+        run_id=run_id,
+        query_fingerprint=query_fingerprint,
+        strategy_preset=request_payload["strategy"]["preset"],
+        resolved_profile_id=profile.profile_id,
+        profile_row_id=backup.id,
+        request_payload=request_payload,
+        result_window=request_payload["result_window"],
+        result_count=result_count,
     )
+    db.add(run)
+    db.flush()
+
+    for ordinal, row in enumerate(scored_rows):
+        db.add(
+            RankingRunListing(
+                ranking_run_id=run.id,
+                listing_id=row.listing.id,
+                ordinal=ordinal,
+                score=row.score,
+                confidence=row.confidence,
+                deal_reason=row.deal_reason,
+                explanation_snapshot=row.explanation,
+            )
+        )
     db.commit()
+    db.refresh(run)
+    return run
 
 
 def run_ranking_query(
     request: RankingQueryRequest, db: Session | None = None
 ) -> RankingQueryResponse:
+    if db is None:
+        raise ValueError("run_ranking_query requires db=Session for Phase B ranking execution.")
+
     request_payload = request.model_dump(mode="json")
     query_fingerprint = _stable_json_hash(request_payload)
     run_id = f"run-{uuid4().hex[:12]}"
@@ -263,38 +336,78 @@ def run_ranking_query(
         enabled_signals=profile.enabled_signals,
     )
 
-    result_item = RankingResultItem(
-        listing_id=100001,
-        score=78.5,
-        deal_reason="Placeholder ranking result for Week 3 contract validation.",
-        confidence=0.82,
-        summary={
-            "price": 2350000,
-            "city": request.filters.city or "Cape Town",
-            "suburb": request.filters.suburb or "Unknown",
-            "property_type": request.filters.property_type or "House",
-        },
-        detail_ref=f"{run_id}:listing-100001",
-    )
-    results = [result_item]
+    job_ids = resolve_dataset_sources_to_job_ids(db, request.dataset_sources)
+    merged = merge_listings_for_jobs(db, job_ids)
+    if not merged:
+        raise ValueError("No listings found for the selected dataset sources.")
 
+    filtered = apply_ranking_filters(merged, request.filters)
+    records_considered = len(filtered)
+
+    scored_rows: list[_ScoredRow] = []
+    for listing in filtered:
+        score, confidence, deal_reason, explanation = score_listing_with_strategy_weights(
+            listing,
+            filtered,
+            weights=profile.default_weights,
+        )
+        scored_rows.append(
+            _ScoredRow(
+                listing=listing,
+                score=score,
+                confidence=confidence,
+                deal_reason=deal_reason,
+                explanation=explanation,
+            )
+        )
+
+    scored_rows.sort(key=lambda r: (-r.score, r.listing.id))
+
+    if request.result_window.top_n is not None:
+        windowed = scored_rows[: request.result_window.top_n]
+    else:
+        page = request.result_window.page or 1
+        page_size = request.result_window.page_size or 20
+        start = (page - 1) * page_size
+        windowed = scored_rows[start : start + page_size]
+
+    results: list[RankingResultItem] = []
+    for row in windowed:
+        L = row.listing
+        results.append(
+            RankingResultItem(
+                listing_id=L.id,
+                score=row.score,
+                deal_reason=row.deal_reason,
+                confidence=row.confidence,
+                summary={
+                    "price": L.price,
+                    "city": L.city,
+                    "suburb": L.suburb,
+                    "property_type": L.property_type,
+                },
+                detail_ref=f"{run_id}:listing-{L.id}",
+            )
+        )
+
+    last_ingested_at, last_scored_at = _freshness_iso(db, job_ids)
     dataset_context = DatasetContext(
         selected_sources=request.dataset_sources,
-        records_considered=len(request.dataset_sources) * 100,
-        last_ingested_at="2026-04-28T10:00:00Z",
-        last_scored_at="2026-04-28T10:05:00Z",
-        model_version=PLACEHOLDER_MODEL_VERSION,
+        records_considered=records_considered,
+        last_ingested_at=last_ingested_at,
+        last_scored_at=last_scored_at,
+        model_version=MODEL_VERSION,
         profile_version=resolved_profile.profile_version,
     )
 
-    pagination = None
-    top_n = None
+    pagination: PaginationEnvelope | None = None
+    top_n: TopNEnvelope | None = None
     if request.result_window.top_n is not None:
         top_n_requested = request.result_window.top_n
         top_n = TopNEnvelope(
             mode="top_n",
             top_n_requested=top_n_requested,
-            top_n_returned=min(top_n_requested, len(results)),
+            top_n_returned=len(results),
         )
     else:
         page = request.result_window.page or 1
@@ -303,18 +416,18 @@ def run_ranking_query(
             mode="pagination",
             page=page,
             page_size=page_size,
-            total_count=len(results),
+            total_count=len(scored_rows),
         )
 
-    if db is not None:
-        _persist_ranking_run(
-            db,
-            run_id=run_id,
-            query_fingerprint=query_fingerprint,
-            request_payload=request_payload,
-            profile=profile,
-            result_count=len(results),
-        )
+    _persist_ranking_run_with_listings(
+        db,
+        run_id=run_id,
+        query_fingerprint=query_fingerprint,
+        request_payload=request_payload,
+        profile=profile,
+        result_count=len(results),
+        scored_rows=windowed,
+    )
 
     return RankingQueryResponse(
         run_id=run_id,
@@ -327,37 +440,74 @@ def run_ranking_query(
     )
 
 
-def get_listing_detail(run_id: str, listing_id: int) -> ListingDetailResponse:
+def _explanation_to_diagnostics(
+    explanation: dict[str, Any], *, detail_ref: str, profile_id: str
+) -> dict[str, Any]:
+    signals_out: list[dict[str, Any]] = []
+    for row in explanation.get("signals", []):
+        signals_out.append(
+            {
+                "name": row["name"],
+                "raw": row["raw_value"],
+                "normalized": row["normalized_score"],
+                "weighted": row["weighted_contribution"],
+            }
+        )
+    return {
+        "signals": signals_out,
+        "comps_context": explanation.get("comps_context"),
+        "roi_assumptions": explanation.get("roi_assumptions"),
+        "risk_flags": explanation.get("risk_flags", []),
+        "detail_ref": detail_ref,
+        "profile_id": profile_id,
+        "summary": explanation.get("summary"),
+        "missing_fields": explanation.get("missing_fields", []),
+    }
+
+
+def get_listing_detail(run_id: str, listing_id: int, db: Session) -> ListingDetailResponse:
+    run = db.scalar(select(RankingRun).where(RankingRun.run_id == run_id))
+    if run is None:
+        raise RankingRunNotFound(f"No ranking run found for run_id={run_id!r}.")
+
+    row = db.scalar(
+        select(RankingRunListing).where(
+            RankingRunListing.ranking_run_id == run.id,
+            RankingRunListing.listing_id == listing_id,
+        )
+    )
+    if row is None:
+        raise RankingListingNotInRun(f"Listing {listing_id} is not part of ranking run {run_id!r}.")
+
+    listing = db.get(Listing, listing_id)
+    if listing is None:
+        raise RankingListingRowMissing(f"Listing id {listing_id} no longer exists.")
+
+    detail_ref = f"{run_id}:listing-{listing_id}"
+    diagnostics = _explanation_to_diagnostics(
+        row.explanation_snapshot,
+        detail_ref=detail_ref,
+        profile_id=run.resolved_profile_id,
+    )
     return ListingDetailResponse(
         listing_core={
             "run_id": run_id,
             "listing_id": listing_id,
-            "price": 2350000,
-            "location": "Placeholder Suburb, Cape Town",
-            "property_type": "House",
+            "price": listing.price,
+            "location": listing.location,
+            "property_type": listing.property_type,
+            "title": listing.title,
+            "city": listing.city,
+            "suburb": listing.suburb,
+            "province": listing.province,
         },
         score_summary={
-            "score": 78.5,
-            "deal_reason": "Placeholder detail response for contract iteration.",
-            "model_version": PLACEHOLDER_MODEL_VERSION,
+            "score": row.score,
+            "deal_reason": row.deal_reason,
+            "model_version": MODEL_VERSION,
             "profile_version": PLACEHOLDER_PROFILE_VERSION,
+            "profile_id": run.resolved_profile_id,
+            "confidence": row.confidence,
         },
-        diagnostics={
-            "signals": [
-                {
-                    "name": "price_vs_comp",
-                    "raw": 0.73,
-                    "normalized": 0.73,
-                    "weighted": 0.24,
-                },
-                {
-                    "name": "roi_proxy",
-                    "raw": 0.69,
-                    "normalized": 0.69,
-                    "weighted": 0.2,
-                },
-            ],
-            "risk_flags": [],
-            "detail_ref": f"{run_id}:listing-{listing_id}",
-        },
+        diagnostics=diagnostics,
     )

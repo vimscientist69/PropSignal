@@ -13,6 +13,9 @@ from app.services.exporting import export_job_results
 from app.services.ingestion import ingest_propflux_file
 from app.services.performance_baseline import run_performance_baseline
 from app.services.ranking_query import (
+    RankingListingNotInRun,
+    RankingListingRowMissing,
+    RankingRunNotFound,
     get_listing_detail,
     list_profiles,
     resolve_profile,
@@ -211,7 +214,15 @@ def listing_detail(
     listing_id: Annotated[int, typer.Option("--listing-id")],
     pretty: Annotated[bool, typer.Option("--pretty")] = False,
 ) -> None:
-    response = get_listing_detail(run_id, listing_id)
+    with SessionLocal() as db:
+        try:
+            response = get_listing_detail(run_id, listing_id, db)
+        except RankingRunNotFound as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from exc
+        except (RankingListingNotInRun, RankingListingRowMissing) as exc:
+            typer.echo(str(exc), err=True)
+            raise typer.Exit(1) from exc
     typer.echo(f"Listing detail loaded: run_id={run_id}, listing_id={listing_id}")
     _emit_json_payload(response.model_dump(mode="json"), output_json=None, pretty=pretty)
 

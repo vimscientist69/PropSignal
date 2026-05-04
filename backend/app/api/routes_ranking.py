@@ -1,14 +1,17 @@
-"""Week 3 ranking and scoring profile API routes (thin handlers)."""
+"""Week 3 ranking and scoring profile API routes (thin handlers).
+
+All strategy, profile resolution, and scoring math live in ``app.services.ranking_query``,
+``ranking_signals``, and ``scoring`` — not in this module. Handlers only validate transport,
+invoke services, and map errors to the §4.4 envelope.
+"""
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
-from sqlalchemy import select
 
 from app.api.week3_errors import error_json_response
 from app.db.session import SessionLocal
-from app.models.ranking_run import RankingRun
 from app.schemas.ranking import (
     ErrorField,
     ListingDetailResponse,
@@ -19,6 +22,9 @@ from app.schemas.ranking import (
     StrategyPreset,
 )
 from app.services.ranking_query import (
+    RankingListingNotInRun,
+    RankingListingRowMissing,
+    RankingRunNotFound,
     get_listing_detail,
     list_profiles,
     resolve_profile,
@@ -41,12 +47,22 @@ def post_rankings_query(
         with SessionLocal() as db:
             return run_ranking_query(body, db=db)
     except ValueError as exc:
+        message = str(exc)
+        if "Unknown dataset source" in message:
+            code = "unknown_dataset_source"
+            field = "dataset_sources"
+        elif "No listings found for the selected dataset sources" in message:
+            code = "empty_dataset"
+            field = "dataset_sources"
+        else:
+            code = "invalid_strategy"
+            field = "strategy"
         return error_json_response(
             status_code=400,
             request=request,
-            code="invalid_strategy",
-            message=str(exc),
-            field_errors=[ErrorField(field="strategy", reason=str(exc))],
+            code=code,
+            message=message,
+            field_errors=[ErrorField(field=field, reason=message)],
         )
 
 
@@ -62,15 +78,22 @@ def get_ranking_listing_detail(
     listing_id: int,
 ) -> ListingDetailResponse | JSONResponse:
     with SessionLocal() as db:
-        run = db.scalar(select(RankingRun).where(RankingRun.run_id == run_id))
-    if run is None:
-        return error_json_response(
-            status_code=404,
-            request=request,
-            code="not_found",
-            message=f"No ranking run found for run_id={run_id!r}.",
-        )
-    return get_listing_detail(run_id, listing_id)
+        try:
+            return get_listing_detail(run_id, listing_id, db)
+        except RankingRunNotFound as exc:
+            return error_json_response(
+                status_code=404,
+                request=request,
+                code="not_found",
+                message=str(exc),
+            )
+        except (RankingListingNotInRun, RankingListingRowMissing) as exc:
+            return error_json_response(
+                status_code=404,
+                request=request,
+                code="not_found",
+                message=str(exc),
+            )
 
 
 @router.get(

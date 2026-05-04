@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 from app.models.ranking_run import RankingRun
+from app.models.ranking_run_listing import RankingRunListing
 from app.models.scoring_profile_backup import ScoringProfileBackup
 from app.schemas.ranking import RankingQueryRequest, StrategyPreset
 from app.services.ranking_query import (
@@ -12,11 +13,20 @@ from app.services.ranking_query import (
     resolve_profile,
     run_ranking_query,
 )
+from sqlalchemy.orm import Session
+
+from tests.ranking_test_seed import seed_two_job_ranking_dataset
+
+
+@pytest.fixture()
+def ranking_db(db_session: Session) -> Session:
+    seed_two_job_ranking_dataset(db_session)
+    return db_session
 
 
 def _request_payload() -> dict:
     return {
-        "dataset_sources": ["sample-a", "sample-b"],
+        "dataset_sources": ["1", "2"],
         "filters": {"city": "Cape Town", "property_type": "House"},
         "strategy": {"preset": "rental_income", "weight_overrides": {}},
         "result_window": {"page": 1, "page_size": 20},
@@ -99,60 +109,86 @@ def test_resolve_profile_from_env_path_override(
     assert resolved.default_weights == {"roi_proxy": 0.7, "confidence": 0.3}
 
 
-def test_run_ranking_query_is_deterministic_for_same_request() -> None:
+def test_run_ranking_query_requires_db() -> None:
     request = RankingQueryRequest.model_validate(_request_payload())
-    first = run_ranking_query(request)
-    second = run_ranking_query(request)
+    with pytest.raises(ValueError, match="requires db"):
+        run_ranking_query(request)
+
+
+def test_run_ranking_query_is_deterministic_for_same_request(ranking_db: Session) -> None:
+    request = RankingQueryRequest.model_validate(_request_payload())
+    first = run_ranking_query(request, db=ranking_db)
+    second = run_ranking_query(request, db=ranking_db)
     assert first.run_id != second.run_id
     assert first.query_fingerprint == second.query_fingerprint
     assert first.dataset_context.model_version == "advanced_v2"
     assert first.dataset_context.profile_version == "v1"
 
 
-def test_run_ranking_query_supports_top_n_envelope() -> None:
+def test_run_ranking_query_supports_top_n_envelope(ranking_db: Session) -> None:
     payload = _request_payload()
+    payload["filters"] = {}
     payload["result_window"] = {"top_n": 5}
     request = RankingQueryRequest.model_validate(payload)
-    response = run_ranking_query(request)
+    response = run_ranking_query(request, db=ranking_db)
     assert response.top_n is not None
     assert response.pagination is None
     assert response.top_n.top_n_requested == 5
 
 
-def test_get_listing_detail_returns_expected_metadata() -> None:
-    detail = get_listing_detail("placeholder-run-abc", 123)
-    assert detail.listing_core["run_id"] == "placeholder-run-abc"
-    assert detail.listing_core["listing_id"] == 123
+def test_get_listing_detail_returns_snapshot(ranking_db: Session) -> None:
+    payload = _request_payload()
+    payload["filters"] = {}
+    request = RankingQueryRequest.model_validate(payload)
+    response = run_ranking_query(request, db=ranking_db)
+    listing_id = response.results[0].listing_id
+    detail = get_listing_detail(response.run_id, listing_id, ranking_db)
+    assert detail.listing_core["run_id"] == response.run_id
+    assert detail.listing_core["listing_id"] == listing_id
     assert detail.score_summary["model_version"] == "advanced_v2"
     assert detail.score_summary["profile_version"] == "v1"
+    assert "signals" in detail.diagnostics
 
 
-def test_run_ranking_query_persists_profile_and_run(db_session) -> None:
+def test_run_ranking_query_persists_profile_and_run(ranking_db: Session) -> None:
     request = RankingQueryRequest.model_validate(_request_payload())
-    response = run_ranking_query(request, db=db_session)
+    response = run_ranking_query(request, db=ranking_db)
 
-    run = db_session.query(RankingRun).filter(RankingRun.run_id == response.run_id).one_or_none()
+    run = ranking_db.query(RankingRun).filter(RankingRun.run_id == response.run_id).one_or_none()
     assert run is not None
     assert run.resolved_profile_id == "rental_income_default"
-    assert run.result_count == 1
+    assert run.result_count == len(response.results)
 
     backup = (
-        db_session.query(ScoringProfileBackup)
+        ranking_db.query(ScoringProfileBackup)
         .filter(ScoringProfileBackup.id == run.profile_row_id)
         .one_or_none()
     )
     assert backup is not None
     assert backup.profile_id == "rental_income_default"
 
+    rows = (
+        ranking_db.query(RankingRunListing).filter(RankingRunListing.ranking_run_id == run.id).all()
+    )
+    assert len(rows) == len(response.results)
 
-def test_run_ranking_query_reuses_equivalent_profile_backup(db_session) -> None:
+
+def test_run_ranking_query_reuses_equivalent_profile_backup(ranking_db: Session) -> None:
     request = RankingQueryRequest.model_validate(_request_payload())
-    first = run_ranking_query(request, db=db_session)
-    second = run_ranking_query(request, db=db_session)
+    first = run_ranking_query(request, db=ranking_db)
+    second = run_ranking_query(request, db=ranking_db)
 
-    first_run = db_session.query(RankingRun).filter(RankingRun.run_id == first.run_id).one()
-    second_run = db_session.query(RankingRun).filter(RankingRun.run_id == second.run_id).one()
+    first_run = ranking_db.query(RankingRun).filter(RankingRun.run_id == first.run_id).one()
+    second_run = ranking_db.query(RankingRun).filter(RankingRun.run_id == second.run_id).one()
     assert first_run.profile_row_id == second_run.profile_row_id
 
-    backup_count = db_session.query(ScoringProfileBackup).count()
+    backup_count = ranking_db.query(ScoringProfileBackup).count()
     assert backup_count == 1
+
+
+def test_run_ranking_query_rejects_unknown_dataset_source(ranking_db: Session) -> None:
+    payload = _request_payload()
+    payload["dataset_sources"] = ["no-such-job-path.json"]
+    request = RankingQueryRequest.model_validate(payload)
+    with pytest.raises(ValueError, match="Unknown dataset source"):
+        run_ranking_query(request, db=ranking_db)

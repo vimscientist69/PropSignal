@@ -8,6 +8,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from tests.ranking_test_seed import seed_two_job_ranking_dataset
+
 
 @pytest.fixture()
 def ranking_api_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
@@ -22,6 +24,8 @@ def ranking_api_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     test_session_local = sessionmaker(
         bind=engine, autocommit=False, autoflush=False, class_=Session
     )
+    with test_session_local() as session:
+        seed_two_job_ranking_dataset(session)
     monkeypatch.setattr(routes_ranking, "SessionLocal", test_session_local)
     return TestClient(app)
 
@@ -51,7 +55,7 @@ def test_rankings_query_price_bounds_validation() -> None:
     response = client.post(
         "/api/v1/rankings/query",
         json={
-            "dataset_sources": ["src"],
+            "dataset_sources": ["1"],
             "filters": {"price_min": 500, "price_max": 100},
             "strategy": {"preset": "rental_income"},
             "result_window": {"page": 1, "page_size": 20},
@@ -62,11 +66,27 @@ def test_rankings_query_price_bounds_validation() -> None:
     assert response.json()["code"] == "validation_error"
 
 
+def test_rankings_query_unknown_dataset_source(ranking_api_client: TestClient) -> None:
+    response = ranking_api_client.post(
+        "/api/v1/rankings/query",
+        json={
+            "dataset_sources": ["/nope/not-a-job.json"],
+            "filters": {},
+            "strategy": {"preset": "rental_income"},
+            "result_window": {"page": 1, "page_size": 20},
+            "sort_mode": "score_desc",
+        },
+    )
+    assert response.status_code == 400
+    body = response.json()
+    assert body["code"] == "unknown_dataset_source"
+
+
 def test_rankings_query_success(ranking_api_client: TestClient) -> None:
     response = ranking_api_client.post(
         "/api/v1/rankings/query",
         json={
-            "dataset_sources": ["sample-a"],
+            "dataset_sources": ["1"],
             "filters": {"city": "Cape Town"},
             "strategy": {"preset": "rental_income", "weight_overrides": {}},
             "result_window": {"page": 1, "page_size": 20},
@@ -78,6 +98,7 @@ def test_rankings_query_success(ranking_api_client: TestClient) -> None:
     assert "run_id" in data
     assert data["resolved_profile"]["profile_id"] == "rental_income_default"
     assert len(data["results"]) >= 1
+    assert data["dataset_context"]["records_considered"] >= 1
 
 
 def test_listing_detail_not_found(ranking_api_client: TestClient) -> None:
@@ -92,7 +113,7 @@ def test_listing_detail_after_ranking(ranking_api_client: TestClient) -> None:
     rank = ranking_api_client.post(
         "/api/v1/rankings/query",
         json={
-            "dataset_sources": ["x"],
+            "dataset_sources": ["1", "2"],
             "filters": {},
             "strategy": {"preset": "balanced_long_term"},
             "result_window": {"top_n": 5},
@@ -101,9 +122,11 @@ def test_listing_detail_after_ranking(ranking_api_client: TestClient) -> None:
     )
     assert rank.status_code == 200
     run_id = rank.json()["run_id"]
-    detail = ranking_api_client.get(f"/api/v1/rankings/{run_id}/listings/100001")
+    listing_id = rank.json()["results"][0]["listing_id"]
+    detail = ranking_api_client.get(f"/api/v1/rankings/{run_id}/listings/{listing_id}")
     assert detail.status_code == 200
     assert detail.json()["listing_core"]["run_id"] == run_id
+    assert detail.json()["listing_core"]["listing_id"] == listing_id
 
 
 def test_scoring_profiles_list() -> None:
