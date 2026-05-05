@@ -601,9 +601,92 @@ already allows optional metadata; avoid renaming shipped keys).
 
 ### Phase C: Dashboard + detail + profile APIs/CLI
 
-- implement dashboard workflow UI and wire it to ranking/detail/profile APIs,
-- implement detail retrieval and profile inspection surfaces,
-- align CLI with API contract and dashboard behavior.
+Deliver a functional dashboard slice that executes the full Week 3 user flow against Phase B
+backend services, with no frontend-owned scoring/profile business logic.
+
+#### Phase C implementation steps (execution order)
+
+1. Lock UX contract against §3.0 before building components.
+   - Confirm required screens/surfaces:
+     - dataset source selection (+ multi-select controls),
+     - filter + strategy controls,
+     - ranked results + detail panel,
+     - profile inspection surface,
+     - run metadata strip.
+   - Confirm no Week 3 profile CRUD/alias remapping in UI.
+
+2. Add dashboard state model and request composer (transport only).
+   - Keep UI state serializable (future URL/state restore support).
+   - Build one request-composition layer that outputs the exact
+     `POST /api/v1/rankings/query` payload shape from §4.1.
+   - Reuse API enums/constraints where practical (generated/shared types or
+     mirrored frontend types) to reduce drift.
+
+3. Implement dataset source selection and job/status context.
+   - Provide source list/multi-select with `select_all` and `clear_all`.
+   - Show job status + validation summary panel (ingestion/scoring/validation health context).
+   - Map selected sources directly to `dataset_sources[]` request values accepted by backend.
+
+4. Implement filter + strategy controls with request-scoped overrides.
+   - Add controls for §3.2 filters (`province`, `city`, `suburb`, budget, property fields,
+     `confidence_min`, `top_n` or pagination).
+   - Add preset selector using profile discovery APIs:
+     - `GET /api/v1/scoring/profiles` for list,
+     - `GET /api/v1/scoring/profiles/{preset}` for resolved profile detail and safe bounds.
+   - Add advanced override editor:
+     - enforce bounds feedback from profile detail response,
+     - reset-to-default behavior per current request,
+     - never persist overrides as profile updates.
+
+5. Wire ranking submission + result rendering.
+   - Submit ranking through `POST /api/v1/rankings/query`.
+   - Render ranked results list/table/cards using API response fields only:
+     `listing_id`, `score`, `deal_reason`, `confidence`, summary attributes, `detail_ref`.
+   - Support both window modes:
+     - `top_n` mode,
+     - pagination (`page`, `page_size`, `total_count`).
+   - Display loading/error/empty states using §4.4 error envelope (`code`, `message`,
+     `field_errors`, `request_id`).
+
+6. Implement listing detail panel/drawer from persisted run context.
+   - On row click, fetch `GET /api/v1/rankings/{run_id}/listings/{listing_id}`.
+   - Render §4.2 diagnostics:
+     - signal breakdown,
+     - comps/fallback context,
+     - ROI assumptions,
+     - risk flags,
+     - scoring metadata (`model_version`, `profile_id`, etc.).
+   - Handle 404 gracefully when run/listing is unavailable.
+
+7. Add visible reproducibility metadata strip in the dashboard.
+   - Show `run_id`, model/profile identifiers, and freshness metadata from `dataset_context`.
+   - Keep metadata copy/export-friendly for debugging and support workflows.
+
+8. CLI and API behavior alignment pass.
+   - Re-verify CLI commands (`rank-query`, `listing-detail`, `profiles-list`, `profile-show`)
+     remain contract-equivalent with UI/API behavior for equivalent inputs.
+   - Ensure 404 and validation/error semantics stay consistent across HTTP and CLI.
+
+9. Deliver Phase C verification gate.
+   - Frontend:
+     - `npm --prefix frontend run lint`
+     - `npm --prefix frontend run build`
+   - Repo quality:
+     - `./scripts/lint.sh`
+     - `./scripts/test.sh`
+   - Add/update smoke tests for ranking + detail + profile API path from dashboard surface.
+   - Update §13.1 “Dashboard (Phase C)” checklist rows as each item ships.
+
+#### Phase C done criteria (must be true before Phase D)
+
+- User can complete end-to-end flow in dashboard:
+  source selection -> filters -> strategy preset/overrides -> ranking -> detail inspection.
+- Dashboard uses backend APIs as source of truth (no client-side scoring/profile logic duplication).
+- Profile discovery and bound-aware override UX work via profile APIs without CRUD/remapping.
+- Ranking/detail errors are surfaced with actionable feedback using standardized API envelope.
+- Run metadata strip is visible and reflects backend response fields for reproducibility.
+- Dashboard, API, and CLI behavior are aligned for equivalent ranking/detail/profile operations.
+- Required frontend/backend quality gates and smoke tests pass.
 
 ### Phase D: Performance and hardening
 
