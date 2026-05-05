@@ -2,6 +2,9 @@
 
 Use this checklist to verify the project is ready for development after a fresh clone.
 
+Fully manually test commit hash: 05c439edbdc87d131caf92d8bbe8195e2b64d92b
+possibly update script to use root path for `./scripts/cli-local.sh`
+
 ## Environment
 
 - [ ] Install Node.js 20.x and npm 10+
@@ -39,7 +42,8 @@ Use this checklist to verify the project is ready for development after a fresh 
 ## CLI Smoke Checks
 
 - [ ] Run `./scripts/cli-local.sh --help`
-- [ ] Run `./scripts/cli-local.sh ingest backend/tests/fixtures/propflux/valid_listings.json`
+- [ ] Run `./scripts/cli-local.sh ingest data/samples/prop24_500_listings.json` (or
+      `backend/tests/fixtures/propflux/valid_listings.json`) from repo root
 - [ ] Run `./scripts/cli-local.sh score 1`
 - [ ] Run `./scripts/cli-local.sh analyze 1`
 - [ ] Run `./scripts/cli-local.sh export 1 --format json`

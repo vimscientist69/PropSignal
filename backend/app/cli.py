@@ -8,7 +8,10 @@ from pydantic import ValidationError
 from app.db.session import SessionLocal
 from app.schemas.ranking import RankingQueryRequest, StrategyPreset
 from app.services.analytics import run_analytics_job
-from app.services.dataset_validation import run_dataset_validation
+from app.services.dataset_validation import (
+    build_rejection_cross_reference,
+    run_dataset_validation,
+)
 from app.services.exporting import export_job_results
 from app.services.ingestion import ingest_propflux_file
 from app.services.performance_baseline import run_performance_baseline
@@ -73,6 +76,28 @@ def validate_dataset(job_id: int) -> None:
         f"valid_rate={result.valid_rate}, invalid_rate={result.invalid_rate}"
     )
     typer.echo(f"Report written to: {result.report_path}")
+
+
+@app.command("inspect-rejections")
+def inspect_rejections(
+    job_id: int,
+    top_fields: Annotated[int, typer.Option("--top-fields")] = 10,
+    sample_values: Annotated[int, typer.Option("--sample-values")] = 5,
+) -> None:
+    with SessionLocal() as db:
+        report = build_rejection_cross_reference(
+            db,
+            job_id,
+            top_fields=top_fields,
+            sample_values=sample_values,
+        )
+    typer.echo(
+        f"Rejection cross-reference for job={job_id}: "
+        f"rejected_rows={report['counts']['total_rejected_rows']}, "
+        f"validation_errors={report['counts']['total_validation_errors']}"
+    )
+    typer.echo(json.dumps(report, indent=2))
+    typer.echo(f"Report written to: {report['report_path']}")
 
 
 @app.command("evaluate-scoring")
