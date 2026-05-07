@@ -151,3 +151,14 @@ def test_scoring_profile_preset() -> None:
     data = response.json()
     assert data["profile_id"] == "resale_arbitrage_default"
     assert data["preset"] == "resale_arbitrage"
+
+
+def test_dataset_sources_summary(ranking_api_client: TestClient) -> None:
+    response = ranking_api_client.get("/api/v1/datasets/sources")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 2
+    first = data[0]
+    assert "source" in first
+    assert "job_id" in first
+    assert "status" in first

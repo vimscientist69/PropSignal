@@ -9,10 +9,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from sqlalchemy import select
 
 from app.api.week3_errors import error_json_response
 from app.db.session import SessionLocal
+from app.models.dataset_validation_result import DatasetValidationResult
+from app.models.ingestion_job import IngestionJob
 from app.schemas.ranking import (
+    DatasetSourceSummaryResponse,
     ErrorField,
     ListingDetailResponse,
     ProfileDetailResponse,
@@ -124,3 +128,36 @@ def get_scoring_profile_preset(
             message=str(exc),
             field_errors=[ErrorField(field="preset", reason=str(exc))],
         )
+
+
+@router.get(
+    "/datasets/sources",
+    response_model=list[DatasetSourceSummaryResponse],
+    tags=["rankings"],
+)
+def list_dataset_sources() -> list[DatasetSourceSummaryResponse]:
+    with SessionLocal() as db:
+        jobs = db.scalars(select(IngestionJob).order_by(IngestionJob.id.desc())).all()
+        validation_by_job_id = {
+            row.job_id: row for row in db.scalars(select(DatasetValidationResult)).all()
+        }
+    return [
+        DatasetSourceSummaryResponse(
+            source=f"job:{job.id}",
+            job_id=job.id,
+            input_path=job.input_path,
+            status=job.status,
+            records_total=job.records_total,
+            records_valid=job.records_valid,
+            records_invalid=job.records_invalid,
+            started_at=job.started_at.isoformat() if job.started_at else None,
+            finished_at=job.finished_at.isoformat() if job.finished_at else None,
+            validation_status=(
+                validation_by_job_id[job.id].status if job.id in validation_by_job_id else None
+            ),
+            validation_summary=(
+                validation_by_job_id[job.id].summary if job.id in validation_by_job_id else None
+            ),
+        )
+        for job in jobs
+    ]

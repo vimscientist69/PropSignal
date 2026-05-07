@@ -173,6 +173,22 @@ class ProfileDetailResponse(BaseModel):
     safe_override_bounds: dict[str, dict[str, float]]
 
 
+class DatasetSourceSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str
+    job_id: int
+    input_path: str
+    status: str
+    records_total: int = Field(ge=0)
+    records_valid: int = Field(ge=0)
+    records_invalid: int = Field(ge=0)
+    started_at: str | None = None
+    finished_at: str | None = None
+    validation_status: str | None = None
+    validation_summary: dict[str, Any] | None = None
+
+
 class ErrorField(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

@@ -742,13 +742,13 @@ Living checklist of **outstanding work** versus the current codebase and compani
 
 ### Dashboard (Phase C)
 
-- [ ] Dataset/source selection and multi-select (`select_all` / `clear_all`) wired to real
+- [x] Dataset/source selection and multi-select (`select_all` / `clear_all`) wired to real
       sources or upload flow per §3.0.
-- [ ] Job status + validation summary panel.
-- [ ] Filter + strategy controls (preset, request-scoped overrides with bound feedback, reset).
-- [ ] Ranked results surface and listing detail panel/drawer (same request schema as
+- [x] Job status + validation summary panel.
+- [x] Filter + strategy controls (preset, request-scoped overrides with bound feedback, reset).
+- [x] Ranked results surface and listing detail panel/drawer (same request schema as
       `POST /api/v1/rankings/query`; no profile CRUD in UI).
-- [ ] Visible run metadata strip (`run_id`, model/profile identifiers, freshness per §3.0).
+- [x] Visible run metadata strip (`run_id`, model/profile identifiers, freshness per §3.0).
 
 ### Documentation
 
