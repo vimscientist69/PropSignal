@@ -54,6 +54,8 @@ Detailed status and next-branch checklist: `docs/current-project-status.md`
   - `./scripts/compose-logs.sh`
 - Apply migrations in container:
   - `./scripts/migrate-docker.sh`
+- Reset database (destructive: drops compose volumes, recreates Postgres, reapplies migrations):
+  - `./scripts/reset-db-docker.sh --yes`
 
 Services:
 
@@ -69,6 +71,8 @@ Services:
   - `./scripts/run-frontend.sh`
 - Apply migrations locally:
   - `./scripts/migrate.sh`
+- Reset local database (destructive: `alembic downgrade base` then `upgrade head`):
+  - `./scripts/reset-db-local.sh --yes`
 
 ## CLI Workflow
 

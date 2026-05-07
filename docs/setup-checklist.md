@@ -24,6 +24,7 @@ possibly update script to use root path for `./scripts/cli-local.sh`
 - [ ] Run `./scripts/compose-up.sh -d`
 - [ ] Confirm services are healthy (`postgres`, `backend`, `frontend`)
 - [ ] Run migrations in container: `./scripts/migrate-docker.sh`
+- [ ] (Optional, destructive) full Docker DB reset: `./scripts/reset-db-docker.sh --yes`
 - [ ] Verify backend health endpoint: `http://localhost:8000/api/v1/health`
 - [ ] Verify frontend placeholder page: `http://localhost:3000`
 
@@ -38,6 +39,7 @@ possibly update script to use root path for `./scripts/cli-local.sh`
 - [ ] Run backend: `./scripts/run-backend.sh`
 - [ ] Run frontend: `./scripts/run-frontend.sh`
 - [ ] Open `http://localhost:3000` and confirm backend status card appears
+- [ ] (Optional, destructive) local DB reset: `./scripts/reset-db-local.sh --yes`
 
 ## CLI Smoke Checks
 

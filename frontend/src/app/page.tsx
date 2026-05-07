@@ -251,22 +251,57 @@ export default function Home() {
 
   return (
     <div className={styles.page}>
+      <aside className={styles.sidebarShell}>
+        <div className={styles.brand}>PropSignal</div>
+        <p className={styles.brandSub}>Scoring Control Center</p>
+        <nav className={styles.navStack}>
+          <span className={styles.navActive}>Control Panel</span>
+          <span className={styles.navItem}>Source Library</span>
+          <span className={styles.navItem}>Runs</span>
+          <span className={styles.navItem}>Diagnostics</span>
+        </nav>
+      </aside>
+
       <main className={styles.main}>
-        <h1>PropSignal Dashboard</h1>
-        <p>Run end-to-end ranking against backend APIs with reproducible run context.</p>
-        <form onSubmit={onSubmit} className={styles.form}>
-          <section className={styles.card}>
+        <header className={styles.topHeader}>
+          <div>
+            <p className={styles.envBadge}>Live ranking environment</p>
+            <h1 className={styles.title}>Dashboard Control Center</h1>
+            <p className={styles.subTitle}>
+              Configure targets, tune scoring strategy, and inspect high-confidence opportunities.
+            </p>
+          </div>
+          <div className={styles.topStats}>
+            <div className={styles.statTile}>
+              <span>Sources</span>
+              <strong>{selectedSources.length}</strong>
+            </div>
+            <div className={styles.statTile}>
+              <span>Records</span>
+              <strong>{ranking?.dataset_context.records_considered ?? "--"}</strong>
+            </div>
+          </div>
+        </header>
+
+        <section className={styles.mainGrid}>
+          <form onSubmit={onSubmit} className={styles.controlPanel}>
             <div className={styles.rowBetween}>
-              <h2>Dataset Sources</h2>
+              <h2 className={styles.sectionTitle}>Main Control Panel</h2>
               <div className={styles.actions}>
-                <button type="button" onClick={() => setSelectedSources(sources.map((s) => s.source))}>
-                  select_all
+                <button
+                  type="button"
+                  className={styles.ghostButton}
+                  onClick={() => setSelectedSources(sources.map((s) => s.source))}
+                >
+                  select all
                 </button>
-                <button type="button" onClick={() => setSelectedSources([])}>
-                  clear_all
+                <button type="button" className={styles.ghostButton} onClick={() => setSelectedSources([])}>
+                  clear all
                 </button>
               </div>
             </div>
+            <p className={styles.sectionHint}>Choose source datasets, filtering constraints, and strategy.</p>
+
             <div className={styles.sourceList}>
               {sources.map((source) => (
                 <label key={source.source} className={styles.sourceItem}>
@@ -281,56 +316,54 @@ export default function Home() {
                       )
                     }
                   />
-                  <span>
-                    {source.source} ({source.status}, valid {source.records_valid}/{source.records_total})
-                  </span>
+                  <span>{source.source}</span>
+                  <small>
+                    {source.status} · {source.records_valid}/{source.records_total} valid
+                  </small>
                 </label>
               ))}
             </div>
+
             <div className={styles.statusGrid}>
               {selectedSourceRows.map((row) => (
-                <div key={`status-${row.source}`} className={styles.statusCell}>
+                <article key={`status-${row.source}`} className={styles.statusCell}>
                   <strong>{row.source}</strong>
-                  <p>job_status: {row.status}</p>
-                  <p>validation: {row.validation_status ?? "n/a"}</p>
-                </div>
+                  <p>Status: {row.status}</p>
+                  <p>Validation: {row.validation_status ?? "n/a"}</p>
+                </article>
               ))}
             </div>
-          </section>
 
-          <section className={styles.card}>
-            <h2>Filters</h2>
+            <h3 className={styles.blockTitle}>Filters</h3>
             <div className={styles.grid}>
-              <input placeholder="province" value={province} onChange={(e) => setProvince(e.target.value)} />
-              <input placeholder="city" value={city} onChange={(e) => setCity(e.target.value)} />
-              <input placeholder="suburb" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
-              <input placeholder="price_min" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
-              <input placeholder="price_max" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
+              <input placeholder="Province" value={province} onChange={(e) => setProvince(e.target.value)} />
+              <input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
+              <input placeholder="Suburb" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
+              <input placeholder="Price min" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
+              <input placeholder="Price max" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
               <input
-                placeholder="property_type"
+                placeholder="Property type"
                 value={propertyType}
                 onChange={(e) => setPropertyType(e.target.value)}
               />
               <input
-                placeholder="bedrooms_min"
+                placeholder="Bedrooms min"
                 value={bedroomsMin}
                 onChange={(e) => setBedroomsMin(e.target.value)}
               />
               <input
-                placeholder="bathrooms_min"
+                placeholder="Bathrooms min"
                 value={bathroomsMin}
                 onChange={(e) => setBathroomsMin(e.target.value)}
               />
               <input
-                placeholder="confidence_min"
+                placeholder="Confidence min"
                 value={confidenceMin}
                 onChange={(e) => setConfidenceMin(e.target.value)}
               />
             </div>
-          </section>
 
-          <section className={styles.card}>
-            <h2>Strategy</h2>
+            <h3 className={styles.blockTitle}>Strategy Profile</h3>
             <select value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
               {profiles.map((profile) => (
                 <option key={profile.preset} value={profile.preset}>
@@ -355,63 +388,73 @@ export default function Home() {
                 );
               })}
             </div>
-            <button type="button" onClick={resetOverrides}>
-              reset_to_default
+            <button type="button" className={styles.ghostButton} onClick={resetOverrides}>
+              Reset overrides
             </button>
-          </section>
 
-          <section className={styles.card}>
-            <h2>Result Window</h2>
+            <h3 className={styles.blockTitle}>Result Window</h3>
             <div className={styles.inline}>
-              <label>
+              <label className={styles.radio}>
                 <input
                   type="radio"
                   checked={windowMode === "top_n"}
                   onChange={() => setWindowMode("top_n")}
                 />
-                top_n
+                Top N
               </label>
-              <label>
+              <label className={styles.radio}>
                 <input
                   type="radio"
                   checked={windowMode === "pagination"}
                   onChange={() => setWindowMode("pagination")}
                 />
-                pagination
+                Pagination
               </label>
             </div>
             {windowMode === "top_n" ? (
-              <input value={topN} onChange={(e) => setTopN(e.target.value)} placeholder="top_n" />
+              <input value={topN} onChange={(e) => setTopN(e.target.value)} placeholder="Top N" />
             ) : (
               <div className={styles.inline}>
-                <input value={page} onChange={(e) => setPage(e.target.value)} placeholder="page" />
-                <input value={pageSize} onChange={(e) => setPageSize(e.target.value)} placeholder="page_size" />
+                <input value={page} onChange={(e) => setPage(e.target.value)} placeholder="Page" />
+                <input value={pageSize} onChange={(e) => setPageSize(e.target.value)} placeholder="Page size" />
               </div>
             )}
-          </section>
+            <button type="submit" className={styles.primaryButton} disabled={loading}>
+              {loading ? "Running..." : "Run ranking"}
+            </button>
+          </form>
 
-          <button type="submit" disabled={loading}>
-            {loading ? "Running..." : "Run Ranking"}
-          </button>
-        </form>
+          <section className={styles.sidePanel}>
+            <h2 className={styles.sectionTitle}>Run Context</h2>
+            <p className={styles.sectionHint}>Snapshot of the latest ranking execution metadata.</p>
+            {ranking ? (
+              <div className={styles.metaGrid}>
+                <p>run_id: {ranking.run_id}</p>
+                <p>profile_id: {ranking.resolved_profile.profile_id}</p>
+                <p>profile_version: {ranking.resolved_profile.profile_version}</p>
+                <p>model_version: {ranking.dataset_context.model_version ?? "n/a"}</p>
+                <p>last_ingested_at: {ranking.dataset_context.last_ingested_at ?? "n/a"}</p>
+                <p>last_scored_at: {ranking.dataset_context.last_scored_at ?? "n/a"}</p>
+              </div>
+            ) : (
+              <p className={styles.mutedLabel}>Run ranking to populate context details.</p>
+            )}
+          </section>
+        </section>
 
         {error ? <p className={styles.error}>{error}</p> : null}
 
-        {ranking ? (
-          <>
-            <section className={styles.card}>
-              <h2>Run Metadata</h2>
-              <p>run_id: {ranking.run_id}</p>
-              <p>profile_id: {ranking.resolved_profile.profile_id}</p>
-              <p>profile_version: {ranking.resolved_profile.profile_version}</p>
-              <p>model_version: {ranking.dataset_context.model_version ?? "n/a"}</p>
-              <p>last_ingested_at: {ranking.dataset_context.last_ingested_at ?? "n/a"}</p>
-              <p>last_scored_at: {ranking.dataset_context.last_scored_at ?? "n/a"}</p>
-            </section>
-
-            <section className={styles.card}>
-              <h2>Ranked Results</h2>
-              {ranking.results.length === 0 ? <p>No results.</p> : null}
+        <section className={styles.bottomGrid}>
+          <section className={styles.resultsPanel}>
+            <div className={styles.rowBetween}>
+              <h2 className={styles.sectionTitle}>Latest Ranked Listings</h2>
+              <span className={styles.mutedLabel}>{ranking?.results.length ?? 0} rows</span>
+            </div>
+            {!ranking ? (
+              <p className={styles.mutedLabel}>Run ranking to display results.</p>
+            ) : ranking.results.length === 0 ? (
+              <p className={styles.mutedLabel}>No results found.</p>
+            ) : (
               <div className={styles.results}>
                 {ranking.results.map((result) => (
                   <button
@@ -421,24 +464,26 @@ export default function Home() {
                     onClick={() => void onFetchDetail(result.listing_id)}
                   >
                     <span>#{result.listing_id}</span>
-                    <span>score {result.score.toFixed(4)}</span>
-                    <span>confidence {result.confidence.toFixed(2)}</span>
+                    <span>{result.score.toFixed(4)}</span>
+                    <span>{result.confidence.toFixed(2)}</span>
                     <span>{result.deal_reason}</span>
                   </button>
                 ))}
               </div>
-            </section>
+            )}
+          </section>
 
-            <section className={styles.card}>
-              <h2>Listing Detail</h2>
-              {activeListingId === null ? <p>Select a ranked listing.</p> : null}
-              {activeListingId !== null && !activeDetail ? <p>Loading listing #{activeListingId}...</p> : null}
-              {activeDetail ? (
-                <pre className={styles.detailJson}>{JSON.stringify(activeDetail, null, 2)}</pre>
-              ) : null}
-            </section>
-          </>
-        ) : null}
+          <section className={styles.detailPanel}>
+            <h2 className={styles.sectionTitle}>Listing Detail</h2>
+            {activeListingId === null ? (
+              <p className={styles.mutedLabel}>Select a ranked listing to inspect diagnostics.</p>
+            ) : null}
+            {activeListingId !== null && !activeDetail ? (
+              <p className={styles.mutedLabel}>Loading listing #{activeListingId}...</p>
+            ) : null}
+            {activeDetail ? <pre className={styles.detailJson}>{JSON.stringify(activeDetail, null, 2)}</pre> : null}
+          </section>
+        </section>
       </main>
     </div>
   );
