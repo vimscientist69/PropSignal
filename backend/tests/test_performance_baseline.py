@@ -19,7 +19,7 @@ def test_performance_baseline_single_dataset_writes_artifacts(
         output_dir=str(tmp_path),
     )
 
-    assert metrics["scope"] == "week2_phase4_minimal_baseline"
+    assert metrics["scope"] == "week3_phase_d_performance_baseline"
     assert len(metrics["datasets"]) == 1
     assert metrics["datasets"][0]["status"] == "pass"
     assert Path(metrics["metrics_path"]).exists()
@@ -29,6 +29,12 @@ def test_performance_baseline_single_dataset_writes_artifacts(
     assert "aggregate" in saved
     assert "slo_assessment" in saved
     assert "score" in saved["aggregate"]
+    assert "ranking_list_api" in saved["aggregate"]
+    assert "filtered_ranking_api" in saved["aggregate"]
+    assert "listing_detail_api" in saved["aggregate"]
+    assert "ranking_list_api_p95_ms" in (
+        saved["slo_assessment"]["met"] + saved["slo_assessment"]["missed"]
+    )
 
 
 def test_performance_baseline_multiple_datasets_aggregates(
@@ -51,6 +57,9 @@ def test_performance_baseline_multiple_datasets_aggregates(
         "score",
         "validate_dataset",
         "evaluate_scoring",
+        "ranking_list_api",
+        "filtered_ranking_api",
+        "listing_detail_api",
     }
     assert "deferred" in metrics["slo_assessment"]
-    assert "ranking_list_api_p95_ms" in metrics["slo_assessment"]["deferred"]
+    assert metrics["slo_assessment"]["deferred"] == []

@@ -736,9 +736,9 @@ Living checklist of **outstanding work** versus the current codebase and compani
 
 ### Performance and hardening (Phase D)
 
-- [ ] Move ranking/list/detail API latency from `deferred` to measured in baseline artifacts
+- [x] Move ranking/list/detail API latency from `deferred` to measured in baseline artifacts
       (`backend/app/services/performance_baseline.py` + tests).
-- [ ] Add or tune indexes for hot filter/ranking query paths as needed.
+- [x] Add or tune indexes for hot filter/ranking query paths as needed.
 
 ### Dashboard (Phase C)
 
@@ -754,7 +754,7 @@ Living checklist of **outstanding work** versus the current codebase and compani
 
 - [ ] Update `docs/week-3-profile-preset-management-spec.md` config sketch if signal names stay
       aligned with production `scoring_profiles.yaml` (avoid doc/code drift).
-- [ ] Refresh `.cursor/rules/PROJECT_NOTE.md` (or equivalent) with API usage and migration notes
+- [x] Refresh `.cursor/rules/PROJECT_NOTE.md` (or equivalent) with API usage and migration notes
       when persistence and routes are complete.
 
 ## 14) Definition of Done (Week 3)
