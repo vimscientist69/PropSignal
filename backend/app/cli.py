@@ -30,6 +30,15 @@ from app.services.scoring_evaluation import run_scoring_evaluation
 app = typer.Typer(help="PropSignal CLI (pre-Week-1).")
 
 
+def _display_backend_output_path(path_value: str) -> str:
+    report_path = Path(path_value)
+    if report_path.is_absolute():
+        return path_value
+    if path_value.startswith("output/"):
+        return f"backend/{path_value}"
+    return path_value
+
+
 @app.command()
 def ingest(path: str) -> None:
     input_path = Path(path)
@@ -75,7 +84,7 @@ def validate_dataset(job_id: int) -> None:
         f"Dataset validation completed for job: {result.job_id}, status={result.status}, "
         f"valid_rate={result.valid_rate}, invalid_rate={result.invalid_rate}"
     )
-    typer.echo(f"Report written to: {result.report_path}")
+    typer.echo(f"Report written to: {_display_backend_output_path(result.report_path)}")
 
 
 @app.command("inspect-rejections")
@@ -97,7 +106,7 @@ def inspect_rejections(
         f"validation_errors={report['counts']['total_validation_errors']}"
     )
     typer.echo(json.dumps(report, indent=2))
-    typer.echo(f"Report written to: {report['report_path']}")
+    typer.echo(f"Report written to: {_display_backend_output_path(report['report_path'])}")
 
 
 @app.command("evaluate-scoring")
@@ -118,7 +127,7 @@ def evaluate_scoring(
         f"job={job_id}, decision={report['decision']}, "
         f"failed_gates={','.join(report['failed_gates']) or 'none'}"
     )
-    typer.echo(f"Report written to: {report['report_path']}")
+    typer.echo(f"Report written to: {_display_backend_output_path(report['report_path'])}")
 
 
 @app.command("benchmark-baseline")
