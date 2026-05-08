@@ -95,6 +95,7 @@ class ResolvedProfile(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     profile_id: str
+    profile_row_id: int = Field(ge=1)
     profile_version: str
     resolved_weights: dict[str, float]
     enabled_signals: list[str]

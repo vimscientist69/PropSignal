@@ -157,6 +157,7 @@ def test_run_ranking_query_persists_profile_and_run(ranking_db: Session) -> None
     run = ranking_db.query(RankingRun).filter(RankingRun.run_id == response.run_id).one_or_none()
     assert run is not None
     assert run.resolved_profile_id == "rental_income_default"
+    assert response.resolved_profile.profile_row_id == run.profile_row_id
     assert run.result_count == len(response.results)
 
     backup = (

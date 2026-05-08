@@ -121,16 +121,19 @@ The system may provide evaluation artifacts, but does not auto-promote profiles.
 ```yaml
 profiles:
   rental_income_default:
-    label: "Rental Income Default"
-    intent: "Yield-first screening"
+    profile_id: "rental_income_default"
+    label: "Rental Income Focus"
+    description: "Prioritize sustainable cash-yield characteristics."
     enabled_signals:
-      - rental_yield
-      - vacancy_risk
-      - maintenance_burden
+      - roi_proxy
+      - price_vs_comp
+      - confidence
+      - time_on_market
     weights:
-      rental_yield: 0.45
-      vacancy_risk: 0.25
-      maintenance_burden: 0.30
+      roi_proxy: 0.50
+      price_vs_comp: 0.25
+      confidence: 0.15
+      time_on_market: 0.10
 
 preset_alias_mapping:
   rental_income: rental_income_default

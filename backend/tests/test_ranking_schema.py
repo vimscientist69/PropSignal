@@ -37,6 +37,7 @@ def _valid_response_payload() -> dict:
         "query_fingerprint": "fp-123",
         "resolved_profile": {
             "profile_id": "rental-income-v1",
+            "profile_row_id": 42,
             "profile_version": "v1",
             "resolved_weights": {"roi_proxy": 0.35, "price_vs_comp": 0.25},
             "enabled_signals": ["roi_proxy", "price_vs_comp"],

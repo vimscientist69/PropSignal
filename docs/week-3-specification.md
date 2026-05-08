@@ -722,10 +722,9 @@ Living checklist of **outstanding work** versus the current codebase and compani
 
 - [x] Persist per-run listing references (or equivalent) so `detail_ref` and detail retrieval match
       the ranked set (resolve open decision in §15: full rows vs reconstruct-on-demand).
-- [ ] Return reproducibility fields on rank response as required (e.g. `profile_row_id` /
-      resolved profile linkage aligned with `week-3-profile-preset-management-spec.md` §7–9).
-      (`profile_row_id` is stored on `ranking_runs` and reused for detail persistence; exposing it
-      on the public JSON response is still optional / follow-up.)
+- [x] Return reproducibility fields on rank response as required (`resolved_profile.profile_row_id`
+      now exposed with resolved profile linkage aligned with
+      `week-3-profile-preset-management-spec.md` §7–9).
 - [x] Implement `get_listing_detail` from stored run + listing context (signal breakdown, comps
       path, ROI assumptions, risk flags per §4.2).
 
@@ -752,8 +751,8 @@ Living checklist of **outstanding work** versus the current codebase and compani
 
 ### Documentation
 
-- [ ] Update `docs/week-3-profile-preset-management-spec.md` config sketch if signal names stay
-      aligned with production `scoring_profiles.yaml` (avoid doc/code drift).
+- [x] Update `docs/week-3-profile-preset-management-spec.md` config sketch to stay aligned with
+      production `scoring_profiles.yaml` signal names/weights (avoid doc/code drift).
 - [x] Refresh `.cursor/rules/PROJECT_NOTE.md` (or equivalent) with API usage and migration notes
       when persistence and routes are complete.
 

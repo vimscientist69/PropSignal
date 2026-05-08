@@ -329,12 +329,6 @@ def run_ranking_query(
     run_id = f"run-{uuid4().hex[:12]}"
 
     profile = resolve_profile(request.strategy.preset, request.strategy.weight_overrides)
-    resolved_profile = ResolvedProfile(
-        profile_id=profile.profile_id,
-        profile_version=profile.profile_version,
-        resolved_weights=profile.default_weights,
-        enabled_signals=profile.enabled_signals,
-    )
 
     job_ids = resolve_dataset_sources_to_job_ids(db, request.dataset_sources)
     merged = merge_listings_for_jobs(db, job_ids)
@@ -397,7 +391,7 @@ def run_ranking_query(
         last_ingested_at=last_ingested_at,
         last_scored_at=last_scored_at,
         model_version=MODEL_VERSION,
-        profile_version=resolved_profile.profile_version,
+        profile_version=profile.profile_version,
     )
 
     pagination: PaginationEnvelope | None = None
@@ -419,7 +413,7 @@ def run_ranking_query(
             total_count=len(scored_rows),
         )
 
-    _persist_ranking_run_with_listings(
+    run = _persist_ranking_run_with_listings(
         db,
         run_id=run_id,
         query_fingerprint=query_fingerprint,
@@ -427,6 +421,13 @@ def run_ranking_query(
         profile=profile,
         result_count=len(results),
         scored_rows=windowed,
+    )
+    resolved_profile = ResolvedProfile(
+        profile_id=profile.profile_id,
+        profile_row_id=run.profile_row_id,
+        profile_version=profile.profile_version,
+        resolved_weights=profile.default_weights,
+        enabled_signals=profile.enabled_signals,
     )
 
     return RankingQueryResponse(
