@@ -12,6 +12,8 @@ This directory is organized so you can quickly find:
   - `/.cursor/rules/PROJECT_NOTE.md`
 - Current status and immediate next-branch checklist:
   - `docs/current-project-status.md`
+- Week 4 dashboard full implementation spec:
+  - `docs/week-4-dashboard-full-implementation-spec.md`
 - Week 2 scoring concept walkthrough:
   - `docs/week2-advanced-scoring-explained.md`
 - Consolidated Week 2 implementation playbook (explanation + code map + order):

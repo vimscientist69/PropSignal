@@ -20,6 +20,7 @@ This project focuses on:
   - Evaluation protocol and promote/revert gates: `docs/evaluation-review-protocol.md`
   - Principal audit findings and gaps: `docs/project-note-principal-audit.md`
   - MVP performance strategy: `docs/mvp-performance-plan.md`
+  - Week 4 dashboard full implementation spec: `docs/week-4-dashboard-full-implementation-spec.md`
   - Current status and kickoff checklist: `docs/current-project-status.md`
 - If any guidance conflicts, use this precedence:
   1. implementation safety and data integrity
