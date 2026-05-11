@@ -89,6 +89,11 @@ class RankingResultItem(BaseModel):
     confidence: float = Field(ge=0, le=1)
     summary: dict[str, Any] = Field(default_factory=dict)
     detail_ref: str
+    listing_url: str | None = None
+    bedrooms: int | None = None
+    bathrooms: float | None = None
+    province: str | None = None
+    source_site: str | None = None
 
 
 class ResolvedProfile(BaseModel):
@@ -204,3 +209,54 @@ class ErrorResponse(BaseModel):
     message: str
     field_errors: list[ErrorField] = Field(default_factory=list)
     request_id: str
+
+
+class RunSummaryItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: str
+    created_at: str
+    strategy_preset: str
+    profile_id: str
+    profile_row_id: int = Field(ge=1)
+    source_count: int = Field(ge=0)
+    records_considered: int = Field(ge=0)
+    result_count: int = Field(ge=0)
+    latency_ms: float | None = None
+
+
+class RunsListResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[RunSummaryItem]
+    page: int = Field(ge=1)
+    page_size: int = Field(ge=1, le=100)
+    total: int = Field(ge=0)
+
+
+class RunDetailResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    run_id: str
+    created_at: str
+    query_fingerprint: str
+    strategy_preset: str
+    profile_id: str
+    profile_row_id: int = Field(ge=1)
+    source_count: int = Field(ge=0)
+    records_considered: int = Field(ge=0)
+    result_count: int = Field(ge=0)
+    request_snapshot: dict[str, Any]
+    result_window: dict[str, Any]
+    results: list[RankingResultItem]
+    latency_ms: float | None = None
+
+
+class DiagnosticsSummaryResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    api_status: str
+    total_ranking_runs: int = Field(ge=0)
+    total_listings: int = Field(ge=0)
+    ingestion_jobs_by_status: dict[str, int] = Field(default_factory=dict)
+    latest_dataset_validations: list[dict[str, Any]] = Field(default_factory=list)

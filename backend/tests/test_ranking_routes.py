@@ -13,7 +13,7 @@ from tests.ranking_test_seed import seed_two_job_ranking_dataset
 
 @pytest.fixture()
 def ranking_api_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
-    from app.api import routes_ranking
+    from app.api import routes_ranking, routes_runs_diagnostics
 
     engine = create_engine(
         "sqlite+pysqlite:///:memory:",
@@ -27,6 +27,7 @@ def ranking_api_client(monkeypatch: pytest.MonkeyPatch) -> TestClient:
     with test_session_local() as session:
         seed_two_job_ranking_dataset(session)
     monkeypatch.setattr(routes_ranking, "SessionLocal", test_session_local)
+    monkeypatch.setattr(routes_runs_diagnostics, "SessionLocal", test_session_local)
     return TestClient(app)
 
 
@@ -125,8 +126,93 @@ def test_listing_detail_after_ranking(ranking_api_client: TestClient) -> None:
     listing_id = rank.json()["results"][0]["listing_id"]
     detail = ranking_api_client.get(f"/api/v1/rankings/{run_id}/listings/{listing_id}")
     assert detail.status_code == 200
-    assert detail.json()["listing_core"]["run_id"] == run_id
-    assert detail.json()["listing_core"]["listing_id"] == listing_id
+    core = detail.json()["listing_core"]
+    assert core["run_id"] == run_id
+    assert core["id"] == listing_id
+    assert "title" in core
+    assert "normalized_payload" in core
+
+
+def test_ranking_results_include_table_fields(ranking_api_client: TestClient) -> None:
+    response = ranking_api_client.post(
+        "/api/v1/rankings/query",
+        json={
+            "dataset_sources": ["1"],
+            "filters": {},
+            "strategy": {"preset": "rental_income", "weight_overrides": {}},
+            "result_window": {"top_n": 3},
+            "sort_mode": "score_desc",
+        },
+    )
+    assert response.status_code == 200
+    row = response.json()["results"][0]
+    assert "bedrooms" in row
+    assert "bathrooms" in row
+    assert "province" in row
+
+
+def test_runs_list_after_ranking(ranking_api_client: TestClient) -> None:
+    ranking_api_client.post(
+        "/api/v1/rankings/query",
+        json={
+            "dataset_sources": ["1"],
+            "filters": {},
+            "strategy": {"preset": "rental_income", "weight_overrides": {}},
+            "result_window": {"top_n": 2},
+            "sort_mode": "score_desc",
+        },
+    )
+    runs = ranking_api_client.get("/api/v1/runs?page=1&page_size=10")
+    assert runs.status_code == 200
+    body = runs.json()
+    assert body["total"] >= 1
+    assert len(body["items"]) >= 1
+    assert body["items"][0]["records_considered"] >= 1
+
+
+def test_run_detail_and_export(ranking_api_client: TestClient) -> None:
+    rank = ranking_api_client.post(
+        "/api/v1/rankings/query",
+        json={
+            "dataset_sources": ["1", "2"],
+            "filters": {},
+            "strategy": {"preset": "balanced_long_term"},
+            "result_window": {"top_n": 2},
+            "sort_mode": "score_desc",
+        },
+    )
+    run_id = rank.json()["run_id"]
+    detail = ranking_api_client.get(f"/api/v1/runs/{run_id}")
+    assert detail.status_code == 200
+    assert detail.json()["run_id"] == run_id
+    assert len(detail.json()["results"]) >= 1
+    export_json = ranking_api_client.get(f"/api/v1/runs/{run_id}/export?format=json")
+    assert export_json.status_code == 200
+    payload = export_json.json()
+    assert "export_metadata" in payload
+    assert payload["export_metadata"]["run_id"] == run_id
+    assert "results" in payload
+    export_csv = ranking_api_client.get(f"/api/v1/runs/{run_id}/export?format=csv")
+    assert export_csv.status_code == 200
+    assert "export_metadata" in export_csv.text
+
+    export_detail = ranking_api_client.get(
+        f"/api/v1/runs/{run_id}/export?format=json&listing_detail=true",
+    )
+    assert export_detail.status_code == 200
+    first = export_detail.json()["results"][0]
+    assert "listing_detail" in first
+    assert "listing_core" in first["listing_detail"]
+    assert "score_summary" in first["listing_detail"]
+    assert "diagnostics" in first["listing_detail"]
+
+
+def test_diagnostics_summary(ranking_api_client: TestClient) -> None:
+    response = ranking_api_client.get("/api/v1/diagnostics/summary")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["api_status"] == "ok"
+    assert body["total_listings"] >= 1
 
 
 def test_scoring_profiles_list() -> None:

@@ -132,7 +132,7 @@ def test_listing_detail_outputs_payload(tmp_path: Path, monkeypatch: pytest.Monk
     assert "Listing detail loaded" in result.stdout
     payload = _parse_json_from_output(result.stdout)
     assert payload["listing_core"]["run_id"] == run_id
-    assert payload["listing_core"]["listing_id"] == listing_id
+    assert payload["listing_core"]["id"] == listing_id
 
 
 def test_profiles_list_outputs_profiles_array() -> None:

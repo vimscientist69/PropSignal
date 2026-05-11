@@ -7,7 +7,7 @@ invoke services, and map errors to the §4.4 envelope.
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 from fastapi.responses import JSONResponse
 from sqlalchemy import select
 
@@ -135,13 +135,16 @@ def get_scoring_profile_preset(
     response_model=list[DatasetSourceSummaryResponse],
     tags=["rankings"],
 )
-def list_dataset_sources() -> list[DatasetSourceSummaryResponse]:
+def list_dataset_sources(
+    status: str | None = Query(default=None, description="Filter by ingestion job status"),
+    q: str | None = Query(default=None, description="Search input path or source token"),
+) -> list[DatasetSourceSummaryResponse]:
     with SessionLocal() as db:
         jobs = db.scalars(select(IngestionJob).order_by(IngestionJob.id.desc())).all()
         validation_by_job_id = {
             row.job_id: row for row in db.scalars(select(DatasetValidationResult)).all()
         }
-    return [
+    rows = [
         DatasetSourceSummaryResponse(
             source=f"job:{job.id}",
             job_id=job.id,
@@ -161,3 +164,11 @@ def list_dataset_sources() -> list[DatasetSourceSummaryResponse]:
         )
         for job in jobs
     ]
+    if status:
+        rows = [row for row in rows if row.status == status]
+    if q:
+        needle = q.lower()
+        rows = [
+            row for row in rows if needle in row.input_path.lower() or needle in row.source.lower()
+        ]
+    return rows

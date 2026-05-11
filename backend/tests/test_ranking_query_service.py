@@ -144,7 +144,7 @@ def test_get_listing_detail_returns_snapshot(ranking_db: Session) -> None:
     listing_id = response.results[0].listing_id
     detail = get_listing_detail(response.run_id, listing_id, ranking_db)
     assert detail.listing_core["run_id"] == response.run_id
-    assert detail.listing_core["listing_id"] == listing_id
+    assert detail.listing_core["id"] == listing_id
     assert detail.score_summary["model_version"] == "advanced_v2"
     assert detail.score_summary["profile_version"] == "v1"
     assert "signals" in detail.diagnostics
@@ -159,6 +159,7 @@ def test_run_ranking_query_persists_profile_and_run(ranking_db: Session) -> None
     assert run.resolved_profile_id == "rental_income_default"
     assert response.resolved_profile.profile_row_id == run.profile_row_id
     assert run.result_count == len(response.results)
+    assert run.records_considered == response.dataset_context.records_considered
 
     backup = (
         ranking_db.query(ScoringProfileBackup)

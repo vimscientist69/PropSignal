@@ -20,5 +20,6 @@ class RankingRun(Base):
     )
     request_payload: Mapped[dict[str, Any]] = mapped_column(JSON)
     result_window: Mapped[dict[str, Any]] = mapped_column(JSON)
+    records_considered: Mapped[int] = mapped_column(Integer)
     result_count: Mapped[int] = mapped_column(Integer)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

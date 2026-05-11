@@ -27,6 +27,18 @@ Do not commit real environment files with secrets.
 
 - `NEXT_PUBLIC_API_BASE_URL` - base URL for backend API calls from the dashboard.
 
+## Dashboard API (Week 4)
+
+The Next.js app under `/dashboard/*` calls these routes (in addition to Week 3 ranking and profile endpoints):
+
+- `GET /api/v1/runs` — paged run summaries (`page`, `page_size` query params).
+- `GET /api/v1/runs/{run_id}` — run metadata, `request_snapshot`, `result_window`, and persisted `results`.
+- `GET /api/v1/runs/{run_id}/export?format=csv|json` — downloadable export with metadata header. Add `listing_detail=true` to embed each row’s full listing detail (same shape as `GET /rankings/{run_id}/listings/{listing_id}`).
+- `GET /api/v1/diagnostics/summary` — operator snapshot (counts, ingestion status mix, recent validations).
+- `GET /api/v1/datasets/sources` — optional `status` and `q` query params for Source Library filtering.
+
+Apply migration `20260511_0009` so `ranking_runs.records_considered` exists in Postgres-backed environments.
+
 ## Docker Compose Defaults
 
 Compose currently provisions:

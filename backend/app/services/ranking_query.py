@@ -32,6 +32,7 @@ from app.schemas.ranking import (
     TopNEnvelope,
 )
 from app.services.dataset_sources import merge_listings_for_jobs, resolve_dataset_sources_to_job_ids
+from app.services.listing_serialization import listing_columns_public_dict
 from app.services.ranking_filters import apply_ranking_filters
 from app.services.ranking_signals import score_listing_with_strategy_weights
 
@@ -231,6 +232,35 @@ class _ScoredRow:
     explanation: dict[str, Any]
 
 
+def build_ranking_result_item(
+    listing: Listing,
+    *,
+    score: float,
+    confidence: float,
+    deal_reason: str,
+    run_id: str,
+) -> RankingResultItem:
+    """Shared shape for ranking query responses and persisted run exports."""
+    return RankingResultItem(
+        listing_id=listing.id,
+        score=score,
+        deal_reason=deal_reason,
+        confidence=confidence,
+        summary={
+            "price": listing.price,
+            "city": listing.city,
+            "suburb": listing.suburb,
+            "property_type": listing.property_type,
+        },
+        detail_ref=f"{run_id}:listing-{listing.id}",
+        listing_url=listing.listing_url,
+        bedrooms=listing.bedrooms,
+        bathrooms=listing.bathrooms,
+        province=listing.province,
+        source_site=listing.source_site,
+    )
+
+
 def _freshness_iso(db: Session, job_ids: list[int]) -> tuple[str | None, str | None]:
     jobs: list[IngestionJob] = []
     for jid in job_ids:
@@ -263,6 +293,7 @@ def _persist_ranking_run_with_listings(
     query_fingerprint: str,
     request_payload: dict[str, Any],
     profile: ProfileDetailResponse,
+    records_considered: int,
     result_count: int,
     scored_rows: list[_ScoredRow],
 ) -> RankingRun:
@@ -296,6 +327,7 @@ def _persist_ranking_run_with_listings(
         profile_row_id=backup.id,
         request_payload=request_payload,
         result_window=request_payload["result_window"],
+        records_considered=records_considered,
         result_count=result_count,
     )
     db.add(run)
@@ -367,20 +399,13 @@ def run_ranking_query(
 
     results: list[RankingResultItem] = []
     for row in windowed:
-        L = row.listing
         results.append(
-            RankingResultItem(
-                listing_id=L.id,
+            build_ranking_result_item(
+                row.listing,
                 score=row.score,
-                deal_reason=row.deal_reason,
                 confidence=row.confidence,
-                summary={
-                    "price": L.price,
-                    "city": L.city,
-                    "suburb": L.suburb,
-                    "property_type": L.property_type,
-                },
-                detail_ref=f"{run_id}:listing-{L.id}",
+                deal_reason=row.deal_reason,
+                run_id=run_id,
             )
         )
 
@@ -419,6 +444,7 @@ def run_ranking_query(
         query_fingerprint=query_fingerprint,
         request_payload=request_payload,
         profile=profile,
+        records_considered=records_considered,
         result_count=len(results),
         scored_rows=windowed,
     )
@@ -490,18 +516,9 @@ def get_listing_detail(run_id: str, listing_id: int, db: Session) -> ListingDeta
         detail_ref=detail_ref,
         profile_id=run.resolved_profile_id,
     )
+    listing_core: dict[str, Any] = {"run_id": run_id, **listing_columns_public_dict(listing)}
     return ListingDetailResponse(
-        listing_core={
-            "run_id": run_id,
-            "listing_id": listing_id,
-            "price": listing.price,
-            "location": listing.location,
-            "property_type": listing.property_type,
-            "title": listing.title,
-            "city": listing.city,
-            "suburb": listing.suburb,
-            "province": listing.province,
-        },
+        listing_core=listing_core,
         score_summary={
             "score": row.score,
             "deal_reason": row.deal_reason,
