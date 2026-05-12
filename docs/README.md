@@ -45,6 +45,8 @@ This directory is organized so you can quickly find:
   - `docs/setup-checklist.md`
 - Configuration guide:
   - `docs/configuration.md`
+- Dashboard frontend QA / test specification:
+  - `docs/dashboard-frontend-test-spec.md`
 
 ## Maintenance Rules
 

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import styles from "../dashboard.module.css";
-import { fetchJson, sourcesQuery } from "../lib/api";
+import { API_BASE, fetchJson, sourcesQuery } from "../lib/api";
 import type { SourceSummary } from "../lib/types";
 import { JsonTree } from "../components/JsonTree";
 
@@ -37,6 +37,15 @@ export default function SourcesPage() {
         </div>
       </header>
 
+      {error ? (
+        <div role="alert" className={styles.errorBanner}>
+          <strong>Request failed.</strong> {error}{" "}
+          <span style={{ fontWeight: 400, opacity: 0.9 }}>
+            (API: <kbd>{API_BASE}</kbd>)
+          </span>
+        </div>
+      ) : null}
+
       <section className={styles.card}>
         <div className={styles.rowBetween}>
           <h2 className={styles.sectionTitle}>Filters</h2>
@@ -47,12 +56,12 @@ export default function SourcesPage() {
         </div>
       </section>
 
-      {error ? <p className={styles.error}>{error}</p> : null}
-
       <section className={styles.bottomGrid}>
         <section className={styles.resultsPanel}>
           <h2 className={styles.sectionTitle}>Sources</h2>
-          {rows.length === 0 ? (
+          {error ? (
+            <p className={styles.mutedLabel}>Fix the error above, or adjust filters.</p>
+          ) : rows.length === 0 ? (
             <p className={styles.mutedLabel}>No sources match filters.</p>
           ) : (
             <div className={styles.dataTableWrap}>

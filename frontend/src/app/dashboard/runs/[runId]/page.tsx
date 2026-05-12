@@ -82,11 +82,20 @@ export default function RunDetailPage() {
         </div>
       </header>
 
-      {error ? <p className={styles.error}>{error}</p> : null}
+      {error ? (
+        <div role="alert" className={styles.errorBanner}>
+          <strong>Request failed.</strong> {error}{" "}
+          <span style={{ fontWeight: 400, opacity: 0.9 }}>
+            (API: <kbd>{API_BASE}</kbd>)
+          </span>
+        </div>
+      ) : null}
 
-      {!run ? (
+      {!run && !error ? (
         <p className={styles.mutedLabel}>Loading…</p>
-      ) : (
+      ) : error ? (
+        <p className={styles.mutedLabel}>Fix the error above to load this run.</p>
+      ) : run !== null ? (
         <>
           <section className={styles.card}>
             <h2 className={styles.sectionTitle}>Snapshot</h2>
@@ -143,7 +152,7 @@ export default function RunDetailPage() {
             </section>
           </section>
         </>
-      )}
+      ) : null}
     </main>
   );
 }

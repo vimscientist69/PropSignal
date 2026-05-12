@@ -377,6 +377,27 @@
   font-size: 0.85rem;
 }
 
+.errorBanner {
+  margin: 0;
+  border: 1px solid #9a3c6a;
+  background: rgba(110, 28, 58, 0.72);
+  border-radius: 0.72rem;
+  padding: 0.65rem 0.85rem;
+  color: #ffe8f2;
+  font-weight: 600;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+}
+
+.errorBanner kbd {
+  font-size: 0.78em;
+  opacity: 0.95;
+}
+
 .bottomGrid {
   display: grid;
   grid-template-columns: 1.7fr 1fr;

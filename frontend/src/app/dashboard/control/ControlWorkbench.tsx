@@ -127,6 +127,8 @@ export function ControlWorkbench() {
   const [activeDetail, setActiveDetail] = useState<ListingDetail | null>(null);
   const [activeListingId, setActiveListingId] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [sourcesReady, setSourcesReady] = useState<"pending" | "success" | "failed">("pending");
   const [detailError, setDetailError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -180,8 +182,11 @@ export function ControlWorkbench() {
         if (profileRows.length > 0) {
           setSelectedPreset(profileRows[0].preset);
         }
-      } catch (loadError) {
-        setError((loadError as Error).message);
+        setSourcesReady("success");
+        setLoadError(null);
+      } catch (loadError_) {
+        setSourcesReady("failed");
+        setLoadError((loadError_ as Error).message);
       }
     };
     void loadInitial();
@@ -193,6 +198,7 @@ export function ControlWorkbench() {
         const detail = await fetchJson<ProfileDetail>(`/api/v1/scoring/profiles/${selectedPreset}`);
         setProfileDetail(detail);
         setOverrides({});
+        setError(null);
       } catch (presetError) {
         setError((presetError as Error).message);
       }
@@ -304,6 +310,7 @@ export function ControlWorkbench() {
         body: JSON.stringify(body),
       });
       setRanking(response);
+      setLoadError(null);
       pushToast("Ranking completed.");
     } catch (submitError) {
       setError((submitError as Error).message);
@@ -501,6 +508,24 @@ export function ControlWorkbench() {
         </div>
       </header>
 
+      {loadError || error ? (
+        <div role="alert" className={styles.errorBanner}>
+          {loadError ? (
+            <p>
+              <strong>Cannot load dashboard data.</strong> {loadError}{" "}
+              <span className={styles.mutedLabel}>
+                (API base: <kbd>{API_BASE}</kbd>)
+              </span>
+            </p>
+          ) : null}
+          {error ? (
+            <p>
+              <strong>Action failed.</strong> {error}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
       <section className={styles.mainGrid}>
         <form onSubmit={onSubmit} className={styles.controlPanel}>
           <div className={styles.rowBetween}>
@@ -525,7 +550,14 @@ export function ControlWorkbench() {
           <div className={styles.card}>
             <h3 className={styles.blockTitle}>Sources</h3>
             <div className={styles.sourceList}>
-              {sources.length === 0 ? (
+              {sourcesReady === "pending" && sources.length === 0 ? (
+                <p className={styles.mutedLabel}>Loading sources from the API…</p>
+              ) : sourcesReady === "failed" ? (
+                <p className={styles.error}>
+                  Sources could not be loaded (see the alert above). This is usually a stopped backend,
+                  wrong <code>NEXT_PUBLIC_API_BASE_URL</code>, or a browser network/CORS block.
+                </p>
+              ) : sources.length === 0 ? (
                 <p className={styles.mutedLabel}>
                   No ingestion jobs found. Ingest data first, then refresh this page.
                 </p>
@@ -805,8 +837,6 @@ export function ControlWorkbench() {
           )}
         </section>
       </section>
-
-      {error ? <p className={styles.error}>{error}</p> : null}
 
       <section className={styles.bottomGrid}>
         <section className={styles.resultsPanel}>

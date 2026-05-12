@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { JsonTree } from "../components/JsonTree";
 import styles from "../dashboard.module.css";
-import { fetchJson } from "../lib/api";
+import { API_BASE, fetchJson } from "../lib/api";
 import type { DiagnosticsSummary } from "../lib/types";
 
 export default function DiagnosticsPage() {
@@ -38,11 +38,20 @@ export default function DiagnosticsPage() {
         </Link>
       </header>
 
-      {error ? <p className={styles.error}>{error}</p> : null}
+      {error ? (
+        <div role="alert" className={styles.errorBanner}>
+          <strong>Request failed.</strong> {error}{" "}
+          <span style={{ fontWeight: 400, opacity: 0.9 }}>
+            (API: <kbd>{API_BASE}</kbd>)
+          </span>
+        </div>
+      ) : null}
 
-      {!data ? (
+      {!data && !error ? (
         <p className={styles.mutedLabel}>Loading…</p>
-      ) : (
+      ) : error ? (
+        <p className={styles.mutedLabel}>Fix the error above to load diagnostics.</p>
+      ) : data !== null ? (
         <>
           <section className={styles.card}>
             <h2 className={styles.sectionTitle}>API status</h2>
@@ -63,7 +72,7 @@ export default function DiagnosticsPage() {
             <JsonTree data={data.latest_dataset_validations} />
           </section>
         </>
-      )}
+      ) : null}
     </main>
   );
 }

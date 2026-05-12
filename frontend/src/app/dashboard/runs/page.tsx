@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import styles from "../dashboard.module.css";
-import { fetchJson } from "../lib/api";
+import { API_BASE, fetchJson } from "../lib/api";
 import type { RunSummaryItem, RunsListResponse } from "../lib/types";
 
 export default function RunsPage() {
@@ -44,7 +44,14 @@ export default function RunsPage() {
         </div>
       </header>
 
-      {error ? <p className={styles.error}>{error}</p> : null}
+      {error ? (
+        <div role="alert" className={styles.errorBanner}>
+          <strong>Request failed.</strong> {error}{" "}
+          <span style={{ fontWeight: 400, opacity: 0.9 }}>
+            (API: <kbd>{API_BASE}</kbd>)
+          </span>
+        </div>
+      ) : null}
 
       <section className={styles.card}>
         <h2 className={styles.sectionTitle}>Compare mode</h2>
@@ -92,9 +99,13 @@ export default function RunsPage() {
 
       <section className={styles.resultsPanel}>
         <h2 className={styles.sectionTitle}>Run history</h2>
-        {!data || data.items.length === 0 ? (
+        {!data && !error ? (
+          <p className={styles.mutedLabel}>Loading…</p>
+        ) : error ? (
+          <p className={styles.mutedLabel}>Fix the error above to load run history.</p>
+        ) : data !== null && data.items.length === 0 ? (
           <p className={styles.mutedLabel}>No runs yet — execute a ranking from the Control Panel.</p>
-        ) : (
+        ) : data !== null ? (
           <div className={styles.dataTableWrap}>
             <table className={styles.dataTable}>
               <thead>
@@ -156,7 +167,7 @@ export default function RunsPage() {
               </tbody>
             </table>
           </div>
-        )}
+        ) : null}
       </section>
     </main>
   );
