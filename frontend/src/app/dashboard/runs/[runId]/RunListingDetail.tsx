@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 
 import { JsonTree } from "../../components/JsonTree";
 import styles from "../../dashboard.module.css";
-import { fetchJson } from "../../lib/api";
+import { fetchJson, formatThrownApiError } from "../../lib/api";
 import type { ListingDetail } from "../../lib/types";
 
 export function RunListingDetail({ runId, listingId }: { runId: string; listingId: number }) {
@@ -23,7 +23,7 @@ export function RunListingDetail({ runId, listingId }: { runId: string; listingI
         }
       } catch (e) {
         if (!cancelled) {
-          setDetailError((e as Error).message);
+          setDetailError(formatThrownApiError(e));
           setDetail(null);
         }
       } finally {
@@ -41,7 +41,11 @@ export function RunListingDetail({ runId, listingId }: { runId: string; listingI
     return <div className={styles.skeleton} style={{ width: "100%" }} aria-hidden />;
   }
   if (detailError) {
-    return <p className={styles.error}>{detailError}</p>;
+    return (
+      <div className={styles.error}>
+        <pre className={styles.errorMultiline}>{detailError}</pre>
+      </div>
+    );
   }
   if (!detail) {
     return <p className={styles.mutedLabel}>No detail.</p>;

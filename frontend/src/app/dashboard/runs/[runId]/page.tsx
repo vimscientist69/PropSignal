@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 import { JsonTree } from "../../components/JsonTree";
 import styles from "../../dashboard.module.css";
-import { API_BASE, fetchJson } from "../../lib/api";
+import { API_BASE, fetchJson, formatThrownApiError } from "../../lib/api";
 import type { RunDetailResponse } from "../../lib/types";
 
 import { RunListingDetail } from "./RunListingDetail";
@@ -27,7 +27,7 @@ export default function RunDetailPage() {
         const res = await fetchJson<RunDetailResponse>(`/api/v1/runs/${runId}`);
         setRun(res);
       } catch (e) {
-        setError((e as Error).message);
+        setError(formatThrownApiError(e));
       }
     };
     void load();
@@ -84,10 +84,11 @@ export default function RunDetailPage() {
 
       {error ? (
         <div role="alert" className={styles.errorBanner}>
-          <strong>Request failed.</strong> {error}{" "}
-          <span style={{ fontWeight: 400, opacity: 0.9 }}>
-            (API: <kbd>{API_BASE}</kbd>)
-          </span>
+          <p className={styles.errorBannerTitle}>Request failed</p>
+          <pre className={styles.errorMultiline}>{error}</pre>
+          <p className={styles.mutedLabel} style={{ marginTop: "0.45rem", marginBottom: 0 }}>
+            API: <kbd>{API_BASE}</kbd>
+          </p>
         </div>
       ) : null}
 

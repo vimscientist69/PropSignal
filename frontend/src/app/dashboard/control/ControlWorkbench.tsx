@@ -5,7 +5,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { JsonTree } from "../components/JsonTree";
 import { useToast } from "../components/DashboardChrome";
 import styles from "../dashboard.module.css";
-import { API_BASE, fetchJson, fetchListingDetailsForRun } from "../lib/api";
+import { API_BASE, fetchJson, fetchListingDetailsForRun, formatThrownApiError } from "../lib/api";
 import { buildExportMetadata, exportRankingCsv, exportRankingJson } from "../lib/exportRanking";
 import type {
   ListingDetail,
@@ -186,7 +186,7 @@ export function ControlWorkbench() {
         setLoadError(null);
       } catch (loadError_) {
         setSourcesReady("failed");
-        setLoadError((loadError_ as Error).message);
+        setLoadError(formatThrownApiError(loadError_));
       }
     };
     void loadInitial();
@@ -200,7 +200,7 @@ export function ControlWorkbench() {
         setOverrides({});
         setError(null);
       } catch (presetError) {
-        setError((presetError as Error).message);
+        setError(formatThrownApiError(presetError));
       }
     };
     if (selectedPreset) {
@@ -313,7 +313,7 @@ export function ControlWorkbench() {
       setLoadError(null);
       pushToast("Ranking completed.");
     } catch (submitError) {
-      setError((submitError as Error).message);
+      setError(formatThrownApiError(submitError));
     } finally {
       setLoading(false);
     }
@@ -333,7 +333,7 @@ export function ControlWorkbench() {
       );
       setActiveDetail(detail);
     } catch (detailErr) {
-      setDetailError((detailErr as Error).message);
+      setDetailError(formatThrownApiError(detailErr));
     } finally {
       setDetailLoading(false);
     }
@@ -392,7 +392,7 @@ export function ControlWorkbench() {
       }
       pushToast(`Exported current window with full detail (${fmt.toUpperCase()}).`);
     } catch (e) {
-      setError((e as Error).message);
+      setError(formatThrownApiError(e));
     } finally {
       setExportDetailBusy(false);
     }
@@ -445,7 +445,7 @@ export function ControlWorkbench() {
       }
       pushToast(`Exported shortlist with full detail (${fmt.toUpperCase()}).`);
     } catch (e) {
-      setError((e as Error).message);
+      setError(formatThrownApiError(e));
     } finally {
       setExportDetailBusy(false);
     }
@@ -476,7 +476,7 @@ export function ControlWorkbench() {
         `Downloaded full run export (${fmt.toUpperCase()}${listingDetail ? ", with listing detail" : ""}).`,
       );
     } catch (e) {
-      setError((e as Error).message);
+      setError(formatThrownApiError(e));
     }
   };
 
@@ -511,17 +511,19 @@ export function ControlWorkbench() {
       {loadError || error ? (
         <div role="alert" className={styles.errorBanner}>
           {loadError ? (
-            <p>
-              <strong>Cannot load dashboard data.</strong> {loadError}{" "}
-              <span className={styles.mutedLabel}>
-                (API base: <kbd>{API_BASE}</kbd>)
-              </span>
-            </p>
+            <div>
+              <p className={styles.errorBannerTitle}>Cannot load dashboard data</p>
+              <pre className={styles.errorMultiline}>{loadError}</pre>
+              <p className={styles.mutedLabel} style={{ marginTop: "0.5rem", marginBottom: 0 }}>
+                API base: <kbd>{API_BASE}</kbd>
+              </p>
+            </div>
           ) : null}
           {error ? (
-            <p>
-              <strong>Action failed.</strong> {error}
-            </p>
+            <div>
+              <p className={styles.errorBannerTitle}>Request failed</p>
+              <pre className={styles.errorMultiline}>{error}</pre>
+            </div>
           ) : null}
         </div>
       ) : null}
@@ -1052,7 +1054,11 @@ export function ControlWorkbench() {
           {detailLoading ? (
             <div className={styles.skeleton} style={{ width: "100%" }} aria-hidden />
           ) : null}
-          {detailError ? <p className={styles.error}>{detailError}</p> : null}
+          {detailError ? (
+            <div className={styles.error}>
+              <pre className={styles.errorMultiline}>{detailError}</pre>
+            </div>
+          ) : null}
           {activeDetail ? (
             <>
               <div className={styles.urlRow}>
