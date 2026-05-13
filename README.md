@@ -22,15 +22,17 @@ Built as a portfolio project demonstrating end-to-end backend design, API contra
 
 ## Screenshots
 
-_Add dashboard captures here before sharing the repo publicly._
+<img width="1855" height="993" alt="image" src="https://github.com/user-attachments/assets/1fd4d0ed-7cd2-4da9-8cf8-43a2abc9663f" />
 
-| Control Panel — ranking results | Listing detail — diagnostics |
-|---------------------------------|------------------------------|
-| _placeholder_ | _placeholder_ |
+<img width="1851" height="997" alt="image" src="https://github.com/user-attachments/assets/d9920697-375d-4e6a-ac88-a0f3da9f5095" />
 
-| Runs — compare diff | Source Library — validation |
-|---------------------|----------------------------|
-| _placeholder_ | _placeholder_ |
+<img width="1862" height="975" alt="image" src="https://github.com/user-attachments/assets/17bdafb4-2be0-4684-9233-2c47576420a5" />
+
+<img width="1864" height="980" alt="image" src="https://github.com/user-attachments/assets/c6a03b16-5d21-4a96-a0a9-758a24c27a4b" />
+
+<img width="1866" height="994" alt="image" src="https://github.com/user-attachments/assets/3d907670-404a-4d29-a0b5-ac13c77fe6a0" />
+
+
 
 ---
 
