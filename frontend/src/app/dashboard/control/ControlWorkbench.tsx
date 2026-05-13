@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { JsonTree } from "../components/JsonTree";
 import { useToast } from "../components/DashboardChrome";
@@ -150,10 +150,29 @@ export function ControlWorkbench() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [columns, setColumns] = useState<Record<string, boolean>>(DEFAULT_COLUMNS);
   const [shortlist, setShortlist] = useState<Set<number>>(() => new Set());
+  const errorBannerRef = useRef<HTMLDivElement>(null);
+  const scrollToRankingErrorRef = useRef(false);
+
+  const reportRankingError = useCallback(
+    (message: string) => {
+      setError(message);
+      scrollToRankingErrorRef.current = true;
+      pushToast("Ranking failed — full details are in the alert at the top of the page.", "error");
+    },
+    [pushToast],
+  );
 
   useEffect(() => {
     setColumns(loadColumnPrefs());
   }, []);
+
+  useEffect(() => {
+    if (!scrollToRankingErrorRef.current || !error) {
+      return;
+    }
+    scrollToRankingErrorRef.current = false;
+    errorBannerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [error]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -283,7 +302,7 @@ export function ControlWorkbench() {
     setActiveDetail(null);
     setActiveListingId(null);
     if (selectedSources.length === 0) {
-      setError("Select at least one dataset source.");
+      reportRankingError("Select at least one dataset source.");
       return;
     }
     setLoading(true);
@@ -313,7 +332,7 @@ export function ControlWorkbench() {
       setLoadError(null);
       pushToast("Ranking completed.");
     } catch (submitError) {
-      setError(formatThrownApiError(submitError));
+      reportRankingError(formatThrownApiError(submitError));
     } finally {
       setLoading(false);
     }
@@ -509,7 +528,7 @@ export function ControlWorkbench() {
       </header>
 
       {loadError || error ? (
-        <div role="alert" className={styles.errorBanner}>
+        <div ref={errorBannerRef} role="alert" className={styles.errorBanner}>
           {loadError ? (
             <div>
               <p className={styles.errorBannerTitle}>Cannot load dashboard data</p>

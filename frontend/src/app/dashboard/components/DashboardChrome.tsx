@@ -14,8 +14,15 @@ import {
 
 import styles from "../dashboard.module.css";
 
+type ToastTone = "default" | "error";
+
+type ToastState = {
+  message: string;
+  tone: ToastTone;
+};
+
 type ToastContextValue = {
-  pushToast: (message: string) => void;
+  pushToast: (message: string, tone?: ToastTone) => void;
 };
 
 const ToastContext = createContext<ToastContextValue | null>(null);
@@ -37,12 +44,12 @@ const NAV = [
 
 export function DashboardChrome({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const [toast, setToast] = useState<string | null>(null);
+  const [toast, setToast] = useState<ToastState | null>(null);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [paletteQuery, setPaletteQuery] = useState("");
 
-  const pushToast = useCallback((message: string) => {
-    setToast(message);
+  const pushToast = useCallback((message: string, tone: ToastTone = "default") => {
+    setToast({ message, tone });
     window.setTimeout(() => setToast(null), 4200);
   }, []);
 
@@ -96,8 +103,12 @@ export function DashboardChrome({ children }: { children: ReactNode }) {
       </div>
 
       {toast ? (
-        <div className={styles.toastHost} role="status">
-          <div className={styles.toast}>{toast}</div>
+        <div className={styles.toastHost} role={toast.tone === "error" ? "alert" : "status"}>
+          <div
+            className={toast.tone === "error" ? `${styles.toast} ${styles.toastError}` : styles.toast}
+          >
+            {toast.message}
+          </div>
         </div>
       ) : null}
 
