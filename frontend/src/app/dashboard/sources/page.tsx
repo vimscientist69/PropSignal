@@ -51,9 +51,37 @@ export default function SourcesPage() {
         <div className={styles.rowBetween}>
           <h2 className={styles.sectionTitle}>Filters</h2>
         </div>
-        <div className={styles.inline}>
-          <input placeholder="Status equals…" value={status} onChange={(e) => setStatus(e.target.value)} />
-          <input placeholder="Search path or source token" value={q} onChange={(e) => setQ(e.target.value)} />
+        <div className={styles.sourceFilterBar}>
+          <label className={styles.sourceFilterField}>
+            <span className={styles.sourceFilterLabel}>Status</span>
+            <select
+              className={styles.sourceStatusSelect}
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+              aria-label="Filter by ingestion job status"
+            >
+              <option value="">All statuses</option>
+              <option value="created">Created</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
+              <option value="completed_with_errors">Completed with errors</option>
+              <option value="analyzed">Analyzed</option>
+              <option value="failed">Failed</option>
+            </select>
+          </label>
+          <label className={`${styles.sourceFilterField} ${styles.sourceFilterFieldGrow}`}>
+            <span className={styles.sourceFilterLabel}>Search</span>
+            <div className={styles.sourceSearchWrap}>
+              <input
+                type="search"
+                className={styles.sourceSearchInput}
+                placeholder="Path or source token…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                aria-label="Search input path or source token"
+              />
+            </div>
+          </label>
         </div>
       </section>
 
