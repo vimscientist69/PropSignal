@@ -1,5 +1,7 @@
 # Pre-Week-1 Architecture
 
+> **Historical note:** Written before the dashboard and ranking API landed. The frontend is now a full Next.js operator console at `/dashboard/*`. See [`dashboard.md`](dashboard.md) and [`../README.md`](../README.md) for the current system.
+
 ## Objective
 
 Establish a CLI-first ingestion and scoring foundation with robust persistence and repeatable local

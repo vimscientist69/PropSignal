@@ -8,10 +8,12 @@ This directory is organized so you can quickly find:
 
 ## Source of Truth Map
 
-- Master roadmap and execution plan:
-  - `/.cursor/rules/PROJECT_NOTE.md`
-- Current status and immediate next-branch checklist:
+- Portfolio README and skills summary:
+  - [`../README.md`](../README.md)
+- Current built vs deferred scope:
   - `docs/current-project-status.md`
+- Local demo / interview walkthrough:
+  - `docs/demo.md`
 - Week 4 dashboard full implementation spec:
   - `docs/week-4-dashboard-full-implementation-spec.md`
 - Week 2 scoring concept walkthrough:
@@ -33,6 +35,8 @@ This directory is organized so you can quickly find:
 
 ## Implementation Detail Docs
 
+- Local demo walkthrough (interview script):
+  - `docs/demo.md`
 - Baseline scoring implementation details:
   - `docs/baseline-scoring-week1.md`
 - Data contract:

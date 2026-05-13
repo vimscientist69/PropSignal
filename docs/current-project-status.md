@@ -1,71 +1,67 @@
 # Current Project Status
 
-This file is the single reference for:
-- what is completed,
-- what is planned but not built,
-- and what to do first on the next feature branch.
+Single reference for what is **built**, what is **deferred**, and what matters for **portfolio vs production** use.
 
-## Snapshot
+Last aligned with the codebase: dashboard tabs, ranking API, runs/diagnostics/export, and compare diff are implemented.
 
-- Current phase: Week 2 implementation completed (including Phase 5 validation cycle).
-- Branch readiness: Week 2 outputs are production-candidate and frozen pending Week 3 scope.
-- Primary next objective: begin Week 3 strategy-driven API/CLI/dashboard implementation.
+---
 
-## Completion Checklist
+## Portfolio-ready (built)
 
-## Completed (foundation + Week 2)
+- [x] Monorepo scaffolding, scripts, Docker Compose, PostgreSQL, CI
+- [x] PropFlux ingestion (partial accept), dedup, raw/normalized/rejected persistence
+- [x] Baseline (`baseline_v1`) and advanced (`advanced_v2`) scoring with explainability payloads
+- [x] Dataset validation CLI and persisted validation summaries
+- [x] Strategy profiles (`scoring_profiles.yaml`) and preset resolution
+- [x] Ranking API: query, listing detail, profiles
+- [x] Persisted ranking runs, run list/detail, CSV/JSON export (optional full listing detail)
+- [x] Diagnostics summary API
+- [x] Dataset sources API with status/search filters
+- [x] CLI parity: `rank-query`, `listing-detail`, `profiles-list`, `profile-show`, evaluation/benchmark commands
+- [x] Dashboard: Control Panel, Source Library, Runs (compare diff), Run detail, Diagnostics
+- [x] Operator docs: README, `demo.md`, `dashboard.md`, `configuration.md` glossary
+- [x] Backend test suite (~90 pytest cases); frontend lint/typecheck/build + unit tests
 
-- [x] Project scaffolding, dev scripts, and CI baseline
-- [x] Docker Compose + PostgreSQL setup
-- [x] PropFlux ingestion with normalization and partial-accept flow
-- [x] Raw/normalized/rejected persistence model
-- [x] Baseline scoring service (`baseline_v1`) with config-driven weights
-- [x] Dataset validation service and CLI command (`validate-dataset`)
-- [x] Core unit/integration test coverage for ingestion, scoring, and dataset validation
-- [x] Week 2 strategy and architecture documentation package
-- [x] Week 2 advanced scoring (`advanced_v2`) with micro-comps + ROI proxy
-- [x] Week 2 structured reasoning payload in scored output
-- [x] Week 2 evaluation gates (`promote`/`revert`/`experimental`) and CLI integration
-- [x] Week 2 segment-based stability checks with relative displacement thresholds
-- [x] Week 2 Phase 4 performance baseline command and artifacts
-- [x] Week 2 Phase 5 validation cycle completed with final promoted profile
+---
 
-## Planned, not implemented yet
+## Deferred (documented, not required for portfolio)
 
-- [ ] Week 3 strategy-driven ranking API/CLI/dashboard functionality
-- [ ] Week 4 full validation/tuning/release hardening loop
-- [ ] Week 2 optional LLM enrichment prototype (gated)
+- [ ] LLM-derived scoring signals (gated in roadmap)
+- [ ] PDF export
+- [ ] Authentication / multi-tenant dashboard
+- [ ] Automated profile promotion in production
+- [ ] Cross-source entity resolution beyond dedup keys
+- [ ] Production deployment, observability, and SLO runbooks
+- [ ] Large real-dataset validation report pack (Week 4 hardening loop)
 
-## Deferred/optional
+---
 
-- [ ] Broad external data integrations beyond one high-impact source
-- [ ] Heavy macro/geospatial modeling
-- [ ] PDF export (if not required for MVP release)
+## Known implementation notes
 
-## Next Feature Branch Kickoff Checklist (Week 3)
+| Topic | State |
+|-------|--------|
+| `profile_version` | Placeholder `v1` in API; use `profile_row_id` + backup for reproducibility |
+| Home route `/` | Redirects to `/dashboard/control` (no marketing landing page) |
+| Demo data | `scripts/demo-local.sh` uses `backend/tests/fixtures/propflux/valid_listings.json` |
+| Scoring tuning | Ongoing manual iteration on weights/presets—not a code completion item |
 
-Use this immediately when starting the next branch:
+---
 
-1. Confirm Week 3 scope: strategy-driven API/CLI/dashboard only.
-2. Keep Week 2 scoring profile as baseline:
-   - `advanced_v2.weights.price_vs_comp = 0.29`
-   - `advanced_v2.weights.roi_proxy = 0.21`
-3. Build ranking/list/detail API endpoints and aligned CLI workflow.
-4. Implement Week 3 performance handoff items from Phase 4 baseline docs.
-5. Preserve Week 2 evaluation contracts while expanding strategy surfaces.
-6. Run regression checks against Week 2 decision artifact before merging.
+## Verify after clone
 
-## Branch Scope Guardrail (Important)
+```bash
+./scripts/setup.sh
+./scripts/lint.sh
+./scripts/test.sh
+./scripts/demo-local.sh    # optional: requires Postgres
+```
 
-- Keep branch goal narrow: `advanced_v2` scoring + reasoning + evaluation checks.
-- Do not include dashboard strategy tooling in the same branch.
-- Keep LLM integration behind feature flag and deterministic fallback.
+See [`setup-checklist.md`](setup-checklist.md) and [`demo.md`](demo.md).
 
-## Related Documents
+---
 
-- Master roadmap: `/.cursor/rules/PROJECT_NOTE.md`
-- Week 2 explanation: `docs/week2-advanced-scoring-explained.md`
-- Evaluation protocol: `docs/evaluation-review-protocol.md`
-- Principal audit: `docs/project-note-principal-audit.md`
-- MVP performance plan: `docs/mvp-performance-plan.md`
-- Week 2 final decision (post enum/eval fix): `backend/output/evaluations/phase5_week2_validation_decision_2026-04-27_post_enum_eval_fix.md`
+## Related documents
+
+- Portfolio README: [`../README.md`](../README.md)
+- Master roadmap: [`../.cursor/rules/PROJECT_NOTE.md`](../.cursor/rules/PROJECT_NOTE.md)
+- Principal audit (production investor bar): [`project-note-principal-audit.md`](project-note-principal-audit.md)

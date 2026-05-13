@@ -235,11 +235,12 @@ For each export, verify: file downloads, filename pattern, and payload shape (op
 |----|------|----------|
 | RN-01 | Initial load | `GET /api/v1/runs?page=1&page_size=50`; table populated when runs exist. |
 | RN-02 | No runs | Message to run ranking from Control Panel first. |
-| RN-03 | **Compare mode** selects | Baseline and candidate dropdowns populated; links “Open baseline” / “Open candidate” navigate to `/dashboard/runs/{run_id}` when values exist. |
+| RN-03 | **Compare mode** | Baseline/candidate dropdowns populated; **Compare runs** loads diff (metadata, request/window, listing score/rank changes); Open baseline/candidate links work. |
 | RN-04 | **View** link | Opens run detail route. |
 | RN-05 | **Copy id** | Clipboard contains `run_id`. |
 | RN-06 | **Export JSON** link | Opens/downloads `GET /api/v1/runs/{run_id}/export?format=json`. |
 | RN-07 | **JSON + detail** link | Same with `listing_detail=true`. |
+| RN-08 | Compare same run | Message that baseline and candidate must differ; no false diff. |
 
 ---
 

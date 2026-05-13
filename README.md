@@ -1,130 +1,140 @@
 # PropSignal
 
-PropSignal ingests property listing datasets, scores them against configurable investment strategies, and surfaces ranked shortlists with explainable diagnostics. The platform is built for operators who need repeatable deal triage—not one-off spreadsheet sorts.
+**Full-stack property listing intelligence:** ingest PropFlux JSON, score listings with configurable strategies, rank and explain results, and audit runs through a CLI and operator dashboard.
 
-**Core value**
+Built as a portfolio project demonstrating end-to-end backend design, API contracts, data persistence, and a production-style React dashboard—not calibrated investment advice.
 
-- **Ingest once, rank many times** — normalized listings persist in PostgreSQL; ranking runs are reproducible and auditable.
-- **Strategy-driven scoring** — presets (rental income, resale arbitrage, etc.) map to weighted signal profiles you can tune per run.
-- **CLI and dashboard parity** — the same backend contracts power terminal workflows and the web control center.
-- **Explainability by default** — each score carries signal breakdowns, comp context, and ROI assumptions where applicable.
+---
 
-## Who this is for
+## What this demonstrates (for reviewers)
 
-Developers and analysts working South African (and similar) residential listing feeds in **PropFlux-style JSON** (another project of mine - a scraping system). PropSignal is not a consumer property portal; it is an internal scoring and ranking pipeline with operator tooling.
+| Area | Evidence in this repo |
+|------|------------------------|
+| **Backend engineering** | FastAPI, SQLAlchemy, Alembic migrations, service-layer separation, structured error envelopes |
+| **Data pipelines** | Partial-accept ingestion, deduplication, batch scoring, persisted ranking runs |
+| **Domain modeling** | Strategy presets, weight overrides, reproducible profile backups, explainability payloads |
+| **API design** | Versioned REST (`/api/v1`), ranking query + listing detail + runs export + diagnostics |
+| **CLI ↔ API parity** | Same request models and services for `rank-query` and HTTP routes |
+| **Frontend** | Next.js App Router dashboard: multi-tab workflows, exports, run compare diff, error UX |
+| **Quality** | Ruff/Black/mypy, pytest (~90 tests), ESLint/tsc/build, GitHub Actions CI |
+
+---
+
+## Screenshots
+
+_Add dashboard captures here before sharing the repo publicly._
+
+| Control Panel — ranking results | Listing detail — diagnostics |
+|---------------------------------|------------------------------|
+| _placeholder_ | _placeholder_ |
+
+| Runs — compare diff | Source Library — validation |
+|---------------------|----------------------------|
+| _placeholder_ | _placeholder_ |
+
+---
+
+## Architecture
+
+```mermaid
+flowchart LR
+  subgraph ingest [Ingest]
+    JSON[PropFlux JSON] --> CLI_ING[CLI ingest]
+    CLI_ING --> PG[(PostgreSQL)]
+  end
+  subgraph score [Score]
+    PG --> SCORE[advanced_v2 scoring]
+    SCORE --> PG
+  end
+  subgraph rank [Rank]
+    DASH[Dashboard] --> API[FastAPI /api/v1]
+    CLI[CLI rank-query] --> API
+    API --> RANK[Ranking service]
+    RANK --> PG
+  end
+  subgraph out [Outputs]
+    PG --> EXPORT[CSV / JSON export]
+    PG --> COMPARE[Run compare diff]
+  end
+```
+
+**Flow:** `ingest` → `score` → `rank-query` (filters + strategy preset + result window) → persisted `run_id` → listing detail / exports / compare.
+
+---
+
+## Tech stack
+
+- **Backend:** Python 3.11, FastAPI, SQLAlchemy 2, Alembic, Pydantic, Typer
+- **Database:** PostgreSQL 16
+- **Frontend:** Next.js 16, React 19, CSS modules
+- **Tooling:** Docker Compose, GitHub Actions, Ruff, Black, mypy, pytest, ESLint
+
+---
+
+## Try it locally (~10 min)
+
+**Prerequisites:** Python 3.11, Node 20, Docker Compose (recommended).
+
+```bash
+cp .env.example .env
+cp backend/.env.example backend/.env
+cp frontend/.env.local.example frontend/.env.local
+./scripts/setup.sh
+./scripts/compose-up.sh
+./scripts/migrate-docker.sh
+./scripts/demo-local.sh          # ingest fixture → score → rank (CLI)
+```
+
+Open [http://localhost:3000/dashboard/control](http://localhost:3000/dashboard/control) (requires `./scripts/run-backend.sh` and `./scripts/run-frontend.sh` in two terminals, or use the compose stack).
+
+Step-by-step interviewer walkthrough: [`docs/demo.md`](docs/demo.md).
+
+---
 
 ## Repository layout
 
-| Path | Role |
-|------|------|
-| `backend/` | FastAPI service, scoring engine, CLI (`app/cli.py`), Alembic migrations |
+| Path | Purpose |
+|------|---------|
+| `backend/` | API, services, CLI, migrations, tests |
 | `frontend/` | Next.js dashboard at `/dashboard/*` |
-| `config/` | Shared scoring weights and evaluation thresholds (`scoring.yaml`) |
-| `backend/config/` | Strategy profile definitions (`scoring_profiles.yaml`) |
-| `docs/` | Setup, configuration glossary, dashboard guide, contracts |
-| `scripts/` | Compose, migrate, lint, test, and CLI wrappers (run from repo root) |
-| `data/` | Local inputs (gitignored except samples) |
-| `output/` | CLI exports and evaluation artifacts (gitignored) |
+| `config/scoring.yaml` | Scoring engine weights, flags, evaluation thresholds |
+| `backend/config/scoring_profiles.yaml` | Strategy presets and profile definitions |
+| `docs/` | Demo walkthrough, dashboard guide, configuration glossary, contracts |
+| `scripts/` | Compose, migrate, lint, test, CLI wrappers, `demo-local.sh` |
 
-## Prerequisites
-
-- Python **3.11.x**
-- Node.js **20.x** (LTS) and npm **10+**
-- Docker + Docker Compose plugin (recommended for full stack)
-
-## Quick start
-
-1. Copy environment templates:
-
-   ```bash
-   cp .env.example .env
-   cp backend/.env.example backend/.env
-   cp frontend/.env.local.example frontend/.env.local
-   ```
-
-2. Install dependencies:
-
-   ```bash
-   ./scripts/setup.sh
-   ```
-
-3. Start the stack (Postgres, API, dashboard):
-
-   ```bash
-   ./scripts/compose-up.sh
-   ./scripts/migrate-docker.sh
-   ```
-
-4. Open:
-
-   - Dashboard: [http://localhost:3000/dashboard/control](http://localhost:3000/dashboard/control)
-   - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
-   - Health: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
-
-For a step-by-step verification list, see [`docs/setup-checklist.md`](docs/setup-checklist.md).
-
-## Development workflows
-
-### Docker Compose (recommended)
-
-| Task | Command |
-|------|---------|
-| Start stack | `./scripts/compose-up.sh` |
-| Stop stack | `./scripts/compose-down.sh` |
-| Logs | `./scripts/compose-logs.sh` |
-| Migrations | `./scripts/migrate-docker.sh` |
-| CLI in container | `./scripts/cli-docker.sh --help` |
-| Reset DB (destructive) | `./scripts/reset-db-docker.sh --yes` |
-
-Default ports: frontend **3000**, backend **8000**, Postgres **5432**.
-
-### Local processes
-
-| Task | Command |
-|------|---------|
-| API only | `./scripts/run-backend.sh` |
-| Frontend only | `./scripts/run-frontend.sh` |
-| Migrations | `./scripts/migrate.sh` |
-| CLI | `./scripts/cli-local.sh --help` |
-| Reset DB (destructive) | `./scripts/reset-db-local.sh --yes` |
-
-### Typical data path
-
-1. **Ingest** a PropFlux JSON array → creates an `ingestion_job` and normalized `listings`.
-2. **Score** the job (batch scoring into `score_results`).
-3. **Rank** via API/CLI/dashboard — strategy preset + filters + result window → persisted `ranking_run`.
-4. **Inspect** listing detail, export CSV/JSON, or compare runs in the dashboard.
-
-CLI reference: [`docs/cli-usage.md`](docs/cli-usage.md).  
-Data contract: [`docs/data-contract-propflux.md`](docs/data-contract-propflux.md).
+---
 
 ## Quality gates
-
-Before opening a PR:
 
 ```bash
 ./scripts/lint.sh
 ./scripts/test.sh
-npm --prefix frontend run build   # when frontend changes
 ```
 
-CI runs backend lint/type/tests/migrations and frontend lint/type/build.
+CI on `main` / PRs: backend lint, format, mypy, migrations, pytest; frontend lint, typecheck, build, unit tests.
+
+---
 
 ## Documentation
 
-| Document | Contents |
-|----------|----------|
-| [`docs/README.md`](docs/README.md) | Documentation index |
-| [`docs/configuration.md`](docs/configuration.md) | Environment variables, config files, and term definitions |
-| [`docs/dashboard.md`](docs/dashboard.md) | Dashboard tabs: purpose, workflows, and behavior |
-| [`docs/setup-checklist.md`](docs/setup-checklist.md) | Fresh-clone verification |
-| [`docs/cli-usage.md`](docs/cli-usage.md) | CLI commands and job lifecycle |
+| Doc | Use when |
+|-----|----------|
+| [`docs/demo.md`](docs/demo.md) | Live demo or interview walkthrough |
+| [`docs/dashboard.md`](docs/dashboard.md) | What each dashboard tab does |
+| [`docs/configuration.md`](docs/configuration.md) | Env vars and domain term definitions |
+| [`docs/cli-usage.md`](docs/cli-usage.md) | CLI command reference |
 | [`docs/data-contract-propflux.md`](docs/data-contract-propflux.md) | Ingestion JSON schema |
-| [`docs/dashboard-frontend-test-spec.md`](docs/dashboard-frontend-test-spec.md) | Manual QA checklist for the UI |
+| [`docs/setup-checklist.md`](docs/setup-checklist.md) | Fresh-clone verification |
+| [`docs/current-project-status.md`](docs/current-project-status.md) | Built vs deferred scope |
 
-Roadmap and phase history: [`.cursor/rules/PROJECT_NOTE.md`](.cursor/rules/PROJECT_NOTE.md).  
-Current completion snapshot: [`docs/current-project-status.md`](docs/current-project-status.md).
+---
 
-## Supported input
+## Scope and limitations (read before evaluating)
 
-PropFlux-style **JSON arrays** of listing objects only. Partial-accept ingestion stores valid rows and rejects invalid ones with diagnostics. See the data contract doc for required and optional fields.
+- **Heuristic scoring** — `advanced_v2` uses config-driven signals and ROI assumptions; weights are tunable but not market-calibrated in this repo.
+- **Single-operator tool** — no authentication or multi-tenant isolation.
+- **PropFlux JSON only** — array-root ingestion contract; no live portal scraping.
+- **Reproducibility** — runs store `profile_row_id` + profile backup payload; `profile_version` in API responses is a placeholder label today.
+- **Out of scope** — LLM enrichment, PDF export, hosted demo, cross-vendor entity resolution, production SLO/observability hardening.
+
+Deeper roadmap context: [`.cursor/rules/PROJECT_NOTE.md`](.cursor/rules/PROJECT_NOTE.md).

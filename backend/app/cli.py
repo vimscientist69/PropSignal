@@ -27,7 +27,7 @@ from app.services.ranking_query import (
 from app.services.scoring import run_scoring_job
 from app.services.scoring_evaluation import run_scoring_evaluation
 
-app = typer.Typer(help="PropSignal CLI (pre-Week-1).")
+app = typer.Typer(help="PropSignal CLI — ingestion, scoring, ranking, and evaluation.")
 
 
 def _display_backend_output_path(path_value: str) -> str:
