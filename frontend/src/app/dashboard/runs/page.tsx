@@ -1,17 +1,22 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import { RunCompareDiff } from "../components/RunCompareDiff";
 import styles from "../dashboard.module.css";
+import { compareRunDetails, type RunCompareResult } from "../lib/compareRuns";
 import { API_BASE, fetchJson, formatThrownApiError } from "../lib/api";
-import type { RunSummaryItem, RunsListResponse } from "../lib/types";
+import type { RunDetailResponse, RunSummaryItem, RunsListResponse } from "../lib/types";
 
 export default function RunsPage() {
   const [data, setData] = useState<RunsListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [baseline, setBaseline] = useState("");
   const [candidate, setCandidate] = useState("");
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareError, setCompareError] = useState<string | null>(null);
+  const [compareResult, setCompareResult] = useState<RunCompareResult | null>(null);
 
   useEffect(() => {
     const load = async () => {
@@ -31,6 +36,29 @@ export default function RunsPage() {
     };
     void load();
   }, []);
+
+  const runCompare = useCallback(async () => {
+    if (!baseline || !candidate) {
+      return;
+    }
+    setCompareLoading(true);
+    setCompareError(null);
+    setCompareResult(null);
+    try {
+      const [baselineRun, candidateRun] =
+        baseline === candidate
+          ? await fetchJson<RunDetailResponse>(`/api/v1/runs/${baseline}`).then((run) => [run, run] as const)
+          : await Promise.all([
+              fetchJson<RunDetailResponse>(`/api/v1/runs/${baseline}`),
+              fetchJson<RunDetailResponse>(`/api/v1/runs/${candidate}`),
+            ]);
+      setCompareResult(compareRunDetails(baselineRun, candidateRun));
+    } catch (e) {
+      setCompareError(formatThrownApiError(e));
+    } finally {
+      setCompareLoading(false);
+    }
+  }, [baseline, candidate]);
 
   const items = data?.items ?? [];
 
@@ -57,12 +85,21 @@ export default function RunsPage() {
       <section className={styles.card}>
         <h2 className={styles.sectionTitle}>Compare mode</h2>
         <p className={styles.sectionHint}>
-          Select a baseline and candidate run for side-by-side review (diff tooling comes later).
+          Pick a baseline and candidate run, then compare metadata, request config, and listing score/rank deltas.
         </p>
-        <div className={styles.inline}>
-          <label className={styles.radio}>
-            Baseline
-            <select value={baseline} onChange={(e) => setBaseline(e.target.value)}>
+        <div className={styles.comparePicker}>
+          <label className={styles.comparePickerField}>
+            <span className={styles.sourceFilterLabel}>Baseline</span>
+            <select
+              className={styles.sourceStatusSelect}
+              value={baseline}
+              onChange={(e) => {
+                setBaseline(e.target.value);
+                setCompareResult(null);
+                setCompareError(null);
+              }}
+              disabled={items.length === 0}
+            >
               {items.map((r: RunSummaryItem) => (
                 <option key={`b-${r.run_id}`} value={r.run_id}>
                   {r.run_id}
@@ -70,9 +107,18 @@ export default function RunsPage() {
               ))}
             </select>
           </label>
-          <label className={styles.radio}>
-            Candidate
-            <select value={candidate} onChange={(e) => setCandidate(e.target.value)}>
+          <label className={styles.comparePickerField}>
+            <span className={styles.sourceFilterLabel}>Candidate</span>
+            <select
+              className={styles.sourceStatusSelect}
+              value={candidate}
+              onChange={(e) => {
+                setCandidate(e.target.value);
+                setCompareResult(null);
+                setCompareError(null);
+              }}
+              disabled={items.length === 0}
+            >
               {items.map((r: RunSummaryItem) => (
                 <option key={`c-${r.run_id}`} value={r.run_id}>
                   {r.run_id}
@@ -85,6 +131,14 @@ export default function RunsPage() {
           Selected: <code>{baseline || "—"}</code> vs <code>{candidate || "—"}</code>
         </p>
         <div className={styles.actions}>
+          <button
+            type="button"
+            className={styles.primaryButton}
+            disabled={!baseline || !candidate || compareLoading || items.length === 0}
+            onClick={() => void runCompare()}
+          >
+            {compareLoading ? "Comparing…" : "Compare runs"}
+          </button>
           {baseline ? (
             <Link className={styles.secondaryButton} href={`/dashboard/runs/${baseline}`}>
               Open baseline
@@ -96,6 +150,18 @@ export default function RunsPage() {
             </Link>
           ) : null}
         </div>
+
+        {compareError ? (
+          <div className={styles.error} style={{ marginTop: "0.75rem" }}>
+            <pre className={styles.errorMultiline}>{compareError}</pre>
+          </div>
+        ) : null}
+
+        {compareResult ? (
+          <div style={{ marginTop: "1rem" }}>
+            <RunCompareDiff result={compareResult} />
+          </div>
+        ) : null}
       </section>
 
       <section className={styles.resultsPanel}>

@@ -444,6 +444,45 @@
   cursor: pointer;
 }
 
+.comparePicker {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.85rem;
+  flex-wrap: wrap;
+}
+
+.comparePickerField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  min-width: min(100%, 18rem);
+  flex: 1 1 14rem;
+}
+
+.compareDiff {
+  display: grid;
+  gap: 1rem;
+}
+
+.compareSummary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.55rem;
+}
+
+.compareSection {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.diffAdded {
+  color: #9dffc4;
+}
+
+.diffRemoved {
+  color: #ffb3ca;
+}
+
 .radio {
   display: flex;
   gap: 0.35rem;
