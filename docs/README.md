@@ -43,8 +43,10 @@ This directory is organized so you can quickly find:
   - `docs/cli-usage.md`
 - Setup checklist:
   - `docs/setup-checklist.md`
-- Configuration guide:
+- Configuration guide (env vars + term glossary):
   - `docs/configuration.md`
+- Dashboard operator guide (tabs, workflows):
+  - `docs/dashboard.md`
 - Dashboard frontend QA / test specification:
   - `docs/dashboard-frontend-test-spec.md`
 

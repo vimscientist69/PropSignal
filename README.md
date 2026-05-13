@@ -1,125 +1,130 @@
 # PropSignal
 
-PropSignal is a real estate deal intelligence platform. Pre-Week-1 delivery is CLI-first with Docker
-Compose orchestration, PostgreSQL persistence, and a strict PropFlux JSON ingestion contract.
+PropSignal ingests property listing datasets, scores them against configurable investment strategies, and surfaces ranked shortlists with explainable diagnostics. The platform is built for operators who need repeatable deal triage—not one-off spreadsheet sorts.
 
-## Project Status (Single-Page Snapshot)
+**Core value**
 
-- Week 1 foundation is complete: ingestion/normalization, baseline scoring, and dataset validation.
-- Week 2/3/4 are documented and ready for implementation on a new feature branch.
-- Current next step: implement Week 2 advanced scoring engine and reasoning payloads.
+- **Ingest once, rank many times** — normalized listings persist in PostgreSQL; ranking runs are reproducible and auditable.
+- **Strategy-driven scoring** — presets (rental income, resale arbitrage, etc.) map to weighted signal profiles you can tune per run.
+- **CLI and dashboard parity** — the same backend contracts power terminal workflows and the web control center.
+- **Explainability by default** — each score carries signal breakdowns, comp context, and ROI assumptions where applicable.
 
-Detailed status and next-branch checklist: `docs/current-project-status.md`
+## Who this is for
 
-## Current Scope Guardrails
+Developers and analysts working South African (and similar) residential listing feeds in **PropFlux-style JSON** (another project of mine - a scraping system). PropSignal is not a consumer property portal; it is an internal scoring and ranking pipeline with operator tooling.
 
-- Pre-Week-1 and Week 1 focus on CLI ingestion, data normalization, scoring, and persistence.
-- Frontend is intentionally placeholder-only for environment parity before Week 3.
-- Supported input format is PropFlux-style JSON arrays only.
-- Schema and contract are documented in `docs/data-contract-propflux.md`.
+## Repository layout
 
-## Monorepo Layout
-
-- `backend/` - FastAPI service and scoring pipeline code
-- `frontend/` - Next.js dashboard
-- `config/` - shared runtime configuration (for example scoring weights)
-- `docs/` - project and contributor documentation
-- `scripts/` - local developer automation helpers
-- `data/` - local input data (gitignored except placeholders)
-- `output/` - generated exports and artifacts (gitignored)
+| Path | Role |
+|------|------|
+| `backend/` | FastAPI service, scoring engine, CLI (`app/cli.py`), Alembic migrations |
+| `frontend/` | Next.js dashboard at `/dashboard/*` |
+| `config/` | Shared scoring weights and evaluation thresholds (`scoring.yaml`) |
+| `backend/config/` | Strategy profile definitions (`scoring_profiles.yaml`) |
+| `docs/` | Setup, configuration glossary, dashboard guide, contracts |
+| `scripts/` | Compose, migrate, lint, test, and CLI wrappers (run from repo root) |
+| `data/` | Local inputs (gitignored except samples) |
+| `output/` | CLI exports and evaluation artifacts (gitignored) |
 
 ## Prerequisites
 
-- Python `3.11.x`
-- Node.js `20.x` (LTS)
-- npm `10+`
-- Docker + Docker Compose plugin
+- Python **3.11.x**
+- Node.js **20.x** (LTS) and npm **10+**
+- Docker + Docker Compose plugin (recommended for full stack)
 
-## Quick Start
+## Quick start
 
 1. Copy environment templates:
-   - `cp .env.example .env`
-   - `cp backend/.env.example backend/.env`
-   - `cp frontend/.env.local.example frontend/.env.local`
-2. Install local dependencies:
-   - `./scripts/setup.sh`
 
-## Docker Compose Workflow (Recommended)
+   ```bash
+   cp .env.example .env
+   cp backend/.env.example backend/.env
+   cp frontend/.env.local.example frontend/.env.local
+   ```
 
-- Start full stack:
-  - `./scripts/compose-up.sh`
-- Stop stack:
-  - `./scripts/compose-down.sh`
-- Stream logs:
-  - `./scripts/compose-logs.sh`
-- Apply migrations in container:
-  - `./scripts/migrate-docker.sh`
-- Reset database (destructive: drops compose volumes, recreates Postgres, reapplies migrations):
-  - `./scripts/reset-db-docker.sh --yes`
+2. Install dependencies:
 
-Services:
+   ```bash
+   ./scripts/setup.sh
+   ```
 
-- frontend: `http://localhost:3000`
-- backend: `http://localhost:8000`
-- postgres: `localhost:5432`
+3. Start the stack (Postgres, API, dashboard):
 
-## Local Development
+   ```bash
+   ./scripts/compose-up.sh
+   ./scripts/migrate-docker.sh
+   ```
 
-- Run backend:
-  - `./scripts/run-backend.sh`
-- Run frontend:
-  - `./scripts/run-frontend.sh`
-- Apply migrations locally:
-  - `./scripts/migrate.sh`
-- Reset local database (destructive: `alembic downgrade base` then `upgrade head`):
-  - `./scripts/reset-db-local.sh --yes`
+4. Open:
 
-## CLI Workflow
+   - Dashboard: [http://localhost:3000/dashboard/control](http://localhost:3000/dashboard/control)
+   - API docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+   - Health: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
 
-- Local CLI:
-  - `./scripts/cli-local.sh --help`
-- Docker CLI:
-  - `./scripts/cli-docker.sh --help`
+For a step-by-step verification list, see [`docs/setup-checklist.md`](docs/setup-checklist.md).
 
-Core commands:
+## Development workflows
 
-- `ingest <path>`
-- `score <job-id>`
-- `validate-dataset <job-id>`
-- `analyze <job-id>`
-- `export <job-id> --format json|csv`
+### Docker Compose (recommended)
 
-## Quality Checks
+| Task | Command |
+|------|---------|
+| Start stack | `./scripts/compose-up.sh` |
+| Stop stack | `./scripts/compose-down.sh` |
+| Logs | `./scripts/compose-logs.sh` |
+| Migrations | `./scripts/migrate-docker.sh` |
+| CLI in container | `./scripts/cli-docker.sh --help` |
+| Reset DB (destructive) | `./scripts/reset-db-docker.sh --yes` |
 
-- Lint all:
-  - `./scripts/lint.sh`
-- Format all:
-  - `./scripts/format.sh`
-- Run tests:
-  - `./scripts/test.sh`
+Default ports: frontend **3000**, backend **8000**, Postgres **5432**.
 
-## CI
+### Local processes
 
-GitHub Actions workflow runs:
+| Task | Command |
+|------|---------|
+| API only | `./scripts/run-backend.sh` |
+| Frontend only | `./scripts/run-frontend.sh` |
+| Migrations | `./scripts/migrate.sh` |
+| CLI | `./scripts/cli-local.sh --help` |
+| Reset DB (destructive) | `./scripts/reset-db-local.sh --yes` |
 
-- backend lint, type checks, migrations, and tests
-- frontend lint, type checks, and build checks
+### Typical data path
 
-## Documentation Map
+1. **Ingest** a PropFlux JSON array → creates an `ingestion_job` and normalized `listings`.
+2. **Score** the job (batch scoring into `score_results`).
+3. **Rank** via API/CLI/dashboard — strategy preset + filters + result window → persisted `ranking_run`.
+4. **Inspect** listing detail, export CSV/JSON, or compare runs in the dashboard.
 
-- Project roadmap and execution plan:
-  - `/.cursor/rules/PROJECT_NOTE.md`
-- Week 2 explanation (simple language):
-  - `docs/week2-advanced-scoring-explained.md`
-- Evaluation and promotion/revert protocol:
-  - `docs/evaluation-review-protocol.md`
-- Principal audit findings and must-fix checklist:
-  - `docs/project-note-principal-audit.md`
-- MVP performance plan (including multi-dataset selection):
-  - `docs/mvp-performance-plan.md`
-- Immediate next feature-branch execution order:
-  - `docs/next-phase-execution-plan.md`
-- Current status and next phase kickoff checklist:
-  - `docs/current-project-status.md`
-- Documentation ownership/index:
-  - `docs/README.md`
+CLI reference: [`docs/cli-usage.md`](docs/cli-usage.md).  
+Data contract: [`docs/data-contract-propflux.md`](docs/data-contract-propflux.md).
+
+## Quality gates
+
+Before opening a PR:
+
+```bash
+./scripts/lint.sh
+./scripts/test.sh
+npm --prefix frontend run build   # when frontend changes
+```
+
+CI runs backend lint/type/tests/migrations and frontend lint/type/build.
+
+## Documentation
+
+| Document | Contents |
+|----------|----------|
+| [`docs/README.md`](docs/README.md) | Documentation index |
+| [`docs/configuration.md`](docs/configuration.md) | Environment variables, config files, and term definitions |
+| [`docs/dashboard.md`](docs/dashboard.md) | Dashboard tabs: purpose, workflows, and behavior |
+| [`docs/setup-checklist.md`](docs/setup-checklist.md) | Fresh-clone verification |
+| [`docs/cli-usage.md`](docs/cli-usage.md) | CLI commands and job lifecycle |
+| [`docs/data-contract-propflux.md`](docs/data-contract-propflux.md) | Ingestion JSON schema |
+| [`docs/dashboard-frontend-test-spec.md`](docs/dashboard-frontend-test-spec.md) | Manual QA checklist for the UI |
+
+Roadmap and phase history: [`.cursor/rules/PROJECT_NOTE.md`](.cursor/rules/PROJECT_NOTE.md).  
+Current completion snapshot: [`docs/current-project-status.md`](docs/current-project-status.md).
+
+## Supported input
+
+PropFlux-style **JSON arrays** of listing objects only. Partial-accept ingestion stores valid rows and rejects invalid ones with diagnostics. See the data contract doc for required and optional fields.
