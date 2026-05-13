@@ -8,8 +8,10 @@ from typing import Any
 
 from sqlalchemy.orm import Session
 
+from app.schemas.ranking import RankingQueryRequest
 from app.services.dataset_validation import run_dataset_validation
 from app.services.ingestion import ingest_propflux_file
+from app.services.ranking_query import get_listing_detail, run_ranking_query
 from app.services.scoring import run_scoring_job
 from app.services.scoring_evaluation import run_scoring_evaluation
 
@@ -49,6 +51,9 @@ def run_performance_baseline(
     score_durations: list[float] = []
     validate_durations: list[float] = []
     evaluate_durations: list[float] = []
+    ranking_list_api_latencies_ms: list[float] = []
+    filtered_ranking_api_latencies_ms: list[float] = []
+    listing_detail_api_latencies_ms: list[float] = []
 
     for dataset_path in dataset_paths:
         result: dict[str, Any] = {
@@ -59,6 +64,11 @@ def run_performance_baseline(
                 "score": 0.0,
                 "validate_dataset": 0.0,
                 "evaluate_scoring": 0.0,
+            },
+            "api_latency_ms": {
+                "ranking_list_api": 0.0,
+                "filtered_ranking_api": 0.0,
+                "listing_detail_api": 0.0,
             },
             "artifacts": {
                 "validation_report_path": None,
@@ -99,6 +109,52 @@ def run_performance_baseline(
                 )
             evaluate_durations.append(evaluate_s)
 
+            list_request = RankingQueryRequest.model_validate(
+                {
+                    "dataset_sources": [str(ingestion_job.id)],
+                    "filters": {},
+                    "strategy": {"preset": "rental_income", "weight_overrides": {}},
+                    "result_window": {"page": 1, "page_size": 20},
+                    "sort_mode": "score_desc",
+                }
+            )
+            list_response, list_api_s = _timed(run_ranking_query, list_request, db=db)
+            list_api_ms = round(list_api_s * 1000, 3)
+            result["api_latency_ms"]["ranking_list_api"] = list_api_ms
+            ranking_list_api_latencies_ms.append(list_api_ms)
+
+            filtered_request = RankingQueryRequest.model_validate(
+                {
+                    "dataset_sources": [str(ingestion_job.id)],
+                    "filters": {
+                        "confidence_min": 0.2,
+                    },
+                    "strategy": {"preset": "rental_income", "weight_overrides": {}},
+                    "result_window": {"page": 1, "page_size": 20},
+                    "sort_mode": "score_desc",
+                }
+            )
+            filtered_response, filtered_api_s = _timed(run_ranking_query, filtered_request, db=db)
+            filtered_api_ms = round(filtered_api_s * 1000, 3)
+            result["api_latency_ms"]["filtered_ranking_api"] = filtered_api_ms
+            filtered_ranking_api_latencies_ms.append(filtered_api_ms)
+
+            detail_listing_id: int | None = None
+            detail_run_id: str | None = None
+            if list_response.results:
+                detail_listing_id = list_response.results[0].listing_id
+                detail_run_id = list_response.run_id
+            elif filtered_response.results:
+                detail_listing_id = filtered_response.results[0].listing_id
+                detail_run_id = filtered_response.run_id
+            if detail_listing_id is not None and detail_run_id is not None:
+                _detail_response, detail_api_s = _timed(
+                    get_listing_detail, detail_run_id, detail_listing_id, db
+                )
+                detail_api_ms = round(detail_api_s * 1000, 3)
+                result["api_latency_ms"]["listing_detail_api"] = detail_api_ms
+                listing_detail_api_latencies_ms.append(detail_api_ms)
+
             result["status"] = "pass"
         except Exception as exc:  # pragma: no cover - defensive path
             result["error"] = str(exc)
@@ -122,6 +178,18 @@ def run_performance_baseline(
             "p50_s": _percentile(evaluate_durations, 0.50),
             "p95_s": _percentile(evaluate_durations, 0.95),
         },
+        "ranking_list_api": {
+            "p50_ms": _percentile(ranking_list_api_latencies_ms, 0.50),
+            "p95_ms": _percentile(ranking_list_api_latencies_ms, 0.95),
+        },
+        "filtered_ranking_api": {
+            "p50_ms": _percentile(filtered_ranking_api_latencies_ms, 0.50),
+            "p95_ms": _percentile(filtered_ranking_api_latencies_ms, 0.95),
+        },
+        "listing_detail_api": {
+            "p50_ms": _percentile(listing_detail_api_latencies_ms, 0.50),
+            "p95_ms": _percentile(listing_detail_api_latencies_ms, 0.95),
+        },
     }
 
     slo_targets = {
@@ -140,22 +208,31 @@ def run_performance_baseline(
         slo_assessment["met"].append("dataset_validation_10k_max_s")
     else:
         slo_assessment["missed"].append("dataset_validation_10k_max_s")
-    slo_assessment["deferred"].extend(
-        ["ranking_list_api_p95_ms", "filtered_ranking_api_p95_ms", "listing_detail_api_p95_ms"]
-    )
+    if aggregate["ranking_list_api"]["p95_ms"] <= slo_targets["ranking_list_api_p95_ms"]:
+        slo_assessment["met"].append("ranking_list_api_p95_ms")
+    else:
+        slo_assessment["missed"].append("ranking_list_api_p95_ms")
+    if aggregate["filtered_ranking_api"]["p95_ms"] <= slo_targets["filtered_ranking_api_p95_ms"]:
+        slo_assessment["met"].append("filtered_ranking_api_p95_ms")
+    else:
+        slo_assessment["missed"].append("filtered_ranking_api_p95_ms")
+    if aggregate["listing_detail_api"]["p95_ms"] <= slo_targets["listing_detail_api_p95_ms"]:
+        slo_assessment["met"].append("listing_detail_api_p95_ms")
+    else:
+        slo_assessment["missed"].append("listing_detail_api_p95_ms")
 
     metrics = {
         "run_id": run_id,
         "timestamp_utc": run_time_utc.isoformat(),
-        "scope": "week2_phase4_minimal_baseline",
+        "scope": "week3_phase_d_performance_baseline",
         "datasets": dataset_results,
         "aggregate": aggregate,
         "slo_targets": slo_targets,
         "slo_assessment": slo_assessment,
         "bottlenecks": [],
         "week3_week4_followups": [
-            "Add API-level latency benchmark harness and capture p95.",
-            "Add query/index optimization for ranking/filter paths.",
+            "Tune p95 API latency further using real 10k+ datasets.",
+            "Validate index effectiveness with query plans on production-like data.",
             "Add async orchestration and cache strategy where needed.",
         ],
     }
@@ -180,6 +257,20 @@ def run_performance_baseline(
         (
             f"- evaluate_scoring: p50={aggregate['evaluate_scoring']['p50_s']}, "
             f"p95={aggregate['evaluate_scoring']['p95_s']}"
+        ),
+        "",
+        "## API latency p50/p95 (milliseconds)",
+        (
+            f"- ranking_list_api: p50={aggregate['ranking_list_api']['p50_ms']}, "
+            f"p95={aggregate['ranking_list_api']['p95_ms']}"
+        ),
+        (
+            f"- filtered_ranking_api: p50={aggregate['filtered_ranking_api']['p50_ms']}, "
+            f"p95={aggregate['filtered_ranking_api']['p95_ms']}"
+        ),
+        (
+            f"- listing_detail_api: p50={aggregate['listing_detail_api']['p50_ms']}, "
+            f"p95={aggregate['listing_detail_api']['p95_ms']}"
         ),
         "",
         "## SLO Assessment",

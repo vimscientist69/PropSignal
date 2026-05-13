@@ -20,6 +20,7 @@ This project focuses on:
   - Evaluation protocol and promote/revert gates: `docs/evaluation-review-protocol.md`
   - Principal audit findings and gaps: `docs/project-note-principal-audit.md`
   - MVP performance strategy: `docs/mvp-performance-plan.md`
+  - Week 4 dashboard full implementation spec: `docs/week-4-dashboard-full-implementation-spec.md`
   - Current status and kickoff checklist: `docs/current-project-status.md`
 - If any guidance conflicts, use this precedence:
   1. implementation safety and data integrity
@@ -520,6 +521,10 @@ Turn PropSignal into a **configurable investor decision tool** where users can:
    - after ranking/list/detail APIs are available, update `backend/app/services/performance_baseline.py`
      to measure API latency and move API SLOs from `deferred` to evaluated (`met`/`missed`)
    - update `backend/tests/test_performance_baseline.py` to enforce this behavior
+  - shipped in Phase D:
+    - baseline now captures `ranking_list_api`, `filtered_ranking_api`, and `listing_detail_api`
+      p50/p95 latency metrics and SLO evaluation
+    - index tuning migration added: `backend/alembic/versions/20260507_0008_phase_d_performance_indexes.py`
 
 #### **3.3 CLI revamp to mirror backend/dashboard capability**
 

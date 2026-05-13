@@ -44,6 +44,16 @@ def _parse_rejection_detail(error_detail: str) -> list[dict[str, Any]]:
     return parsed if isinstance(parsed, list) else []
 
 
+def _value_at_loc(payload: dict[str, Any], loc: list[Any]) -> Any:
+    current: Any = payload
+    for key in loc:
+        if isinstance(current, dict) and key in current:
+            current = current[key]
+            continue
+        return None
+    return current
+
+
 def run_dataset_validation(db: Session, job_id: int) -> DatasetValidationResult:
     job = db.get(IngestionJob, job_id)
     if job is None:
@@ -165,3 +175,91 @@ def run_dataset_validation(db: Session, job_id: int) -> DatasetValidationResult:
     db.commit()
     db.refresh(result)
     return result
+
+
+def build_rejection_cross_reference(
+    db: Session,
+    job_id: int,
+    *,
+    top_fields: int = 10,
+    sample_values: int = 5,
+) -> dict[str, Any]:
+    """Return grouped rejection diagnostics with raw value examples per field."""
+    job = db.get(IngestionJob, job_id)
+    if job is None:
+        raise ValueError(f"Ingestion job not found: {job_id}")
+
+    rejected_rows = db.scalars(
+        select(RejectedListing).where(RejectedListing.job_id == job_id)
+    ).all()
+
+    field_counter: Counter[str] = Counter()
+    type_counter: Counter[str] = Counter()
+    field_type_counter: dict[str, Counter[str]] = {}
+    field_values: dict[str, Counter[str]] = {}
+    field_examples: dict[str, list[dict[str, Any]]] = {}
+
+    for row in rejected_rows:
+        details = _parse_rejection_detail(row.error_detail)
+        for err in details:
+            loc = err.get("loc")
+            loc_list = loc if isinstance(loc, list) else []
+            field = str(loc_list[0]) if loc_list else "<root>"
+            err_type = str(err.get("type", "<unknown>"))
+            raw_value = (
+                _value_at_loc(row.payload, loc_list) if isinstance(row.payload, dict) else None
+            )
+
+            field_counter[field] += 1
+            type_counter[err_type] += 1
+            field_type_counter.setdefault(field, Counter())[err_type] += 1
+
+            value_key = repr(raw_value)
+            field_values.setdefault(field, Counter())[value_key] += 1
+
+            examples = field_examples.setdefault(field, [])
+            if len(examples) < sample_values:
+                examples.append(
+                    {
+                        "record_index": row.record_index,
+                        "error_type": err_type,
+                        "raw_value": raw_value,
+                        "error_message": err.get("msg"),
+                    }
+                )
+
+    top_field_names = [name for name, _ in field_counter.most_common(top_fields)]
+    per_field = []
+    for field in top_field_names:
+        per_field.append(
+            {
+                "field": field,
+                "count": field_counter[field],
+                "error_types": dict(field_type_counter.get(field, Counter()).most_common()),
+                "top_raw_values": [
+                    {"value": value, "count": count}
+                    for value, count in field_values.get(field, Counter()).most_common(
+                        sample_values
+                    )
+                ],
+                "examples": field_examples.get(field, []),
+            }
+        )
+
+    report = {
+        "job_id": job_id,
+        "counts": {
+            "total_rejected_rows": len(rejected_rows),
+            "total_validation_errors": sum(field_counter.values()),
+        },
+        "by_error_type": dict(type_counter.most_common()),
+        "top_fields": dict(field_counter.most_common(top_fields)),
+        "per_field": per_field,
+    }
+
+    output_dir = Path("output")
+    output_dir.mkdir(parents=True, exist_ok=True)
+    report_path = output_dir / f"job_{job_id}_rejections_xref.json"
+    report_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    report["report_path"] = str(report_path)
+    return report

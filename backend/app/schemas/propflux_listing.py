@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-from pydantic import BaseModel, ConfigDict, ValidationError
+from pydantic import BaseModel, ConfigDict, ValidationError, field_validator
 
 
 class RecordValidationError(BaseModel):
@@ -62,6 +63,72 @@ class PropfluxListing(BaseModel):
     is_private_seller: bool | None = None
     source_site: str | None = None
     scraped_at: datetime | None = None
+
+    @field_validator(
+        "backup_power",
+        "security",
+        "pets_allowed",
+        "pool",
+        "garden",
+        "electric_fencing",
+        "laundry",
+        "alarm",
+        "study",
+        "is_auction",
+        "is_private_seller",
+        mode="before",
+    )
+    @classmethod
+    def coerce_optional_bool(cls, value: Any) -> bool | None:
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return value
+        if isinstance(value, int):
+            if value in (0, 1):
+                return bool(value)
+            raise ValueError("Expected boolean-like value (0/1).")
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"", "null", "none", "n/a", "na", "-"}:
+                return None
+            if normalized in {"true", "t", "yes", "y", "1"}:
+                return True
+            if normalized in {"false", "f", "no", "n", "0"}:
+                return False
+        raise ValueError("Expected boolean-like value (true/false, yes/no, 1/0).")
+
+    @field_validator("price", mode="before")
+    @classmethod
+    def coerce_price(cls, value: Any) -> float:
+        if isinstance(value, (int, float)):
+            return float(value)
+        if not isinstance(value, str):
+            raise ValueError("price must be numeric")
+
+        raw = value.strip()
+        if not raw:
+            raise ValueError("price must be numeric")
+
+        # Support common scraped formats: "R 1 250 000", "1,250,000", "1.250.000,00"
+        compact = raw.replace(" ", "")
+        cleaned = re.sub(r"[^0-9,.\-]", "", compact)
+        if not cleaned:
+            raise ValueError("price must be numeric")
+
+        if "," in cleaned and "." in cleaned:
+            if cleaned.rfind(",") > cleaned.rfind("."):
+                cleaned = cleaned.replace(".", "")
+                cleaned = cleaned.replace(",", ".")
+            else:
+                cleaned = cleaned.replace(",", "")
+        elif "," in cleaned:
+            cleaned = cleaned.replace(",", "")
+
+        try:
+            return float(cleaned)
+        except ValueError as exc:
+            raise ValueError("price must be numeric") from exc
 
 
 def validate_propflux_payload(payload: Any) -> list[PropfluxListing]:

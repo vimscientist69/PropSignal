@@ -85,3 +85,41 @@ def test_partial_validation_allows_unknown_extra_fields() -> None:
 
     assert len(valid) == 1
     assert len(invalid) == 0
+
+
+def test_partial_validation_coerces_boolish_and_formatted_price() -> None:
+    payload = [
+        {
+            "title": "3 Bedroom House in Blanco",
+            "price": "R 2 350 000",
+            "location": "Blanco",
+            "bedrooms": 3,
+            "bathrooms": 2.0,
+            "property_type": "House",
+            "description": "Formatted price + bool strings",
+            "security": "Yes",
+            "backup_power": "no",
+            "is_auction": "0",
+        }
+    ]
+    valid, invalid = validate_propflux_payload_partial(payload)
+    assert len(valid) == 1
+    assert len(invalid) == 0
+
+
+def test_partial_validation_rejects_non_numeric_price_string() -> None:
+    payload = [
+        {
+            "title": "Bad price",
+            "price": "call for price",
+            "location": "Cape Town",
+            "bedrooms": 2,
+            "bathrooms": 1.0,
+            "property_type": "House",
+            "description": "Should fail",
+        }
+    ]
+    valid, invalid = validate_propflux_payload_partial(payload)
+    assert len(valid) == 0
+    assert len(invalid) == 1
+    assert invalid[0].error_code == "validation_error"

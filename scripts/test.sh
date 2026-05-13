@@ -5,3 +5,4 @@ set -euo pipefail
 source .venv/bin/activate
 pytest backend/tests
 npm --prefix frontend run typecheck
+npm --prefix frontend run test

@@ -1,121 +1,140 @@
 # PropSignal
 
-PropSignal is a real estate deal intelligence platform. Pre-Week-1 delivery is CLI-first with Docker
-Compose orchestration, PostgreSQL persistence, and a strict PropFlux JSON ingestion contract.
+**Full-stack property listing intelligence:** ingest PropFlux JSON, score listings with configurable strategies, rank and explain results, and audit runs through a CLI and operator dashboard.
 
-## Project Status (Single-Page Snapshot)
+Built as a portfolio project demonstrating end-to-end backend design, API contracts, data persistence, and a production-style React dashboard—not calibrated investment advice.
 
-- Week 1 foundation is complete: ingestion/normalization, baseline scoring, and dataset validation.
-- Week 2/3/4 are documented and ready for implementation on a new feature branch.
-- Current next step: implement Week 2 advanced scoring engine and reasoning payloads.
+---
 
-Detailed status and next-branch checklist: `docs/current-project-status.md`
+## What this demonstrates (for reviewers)
 
-## Current Scope Guardrails
+| Area | Evidence in this repo |
+|------|------------------------|
+| **Backend engineering** | FastAPI, SQLAlchemy, Alembic migrations, service-layer separation, structured error envelopes |
+| **Data pipelines** | Partial-accept ingestion, deduplication, batch scoring, persisted ranking runs |
+| **Domain modeling** | Strategy presets, weight overrides, reproducible profile backups, explainability payloads |
+| **API design** | Versioned REST (`/api/v1`), ranking query + listing detail + runs export + diagnostics |
+| **CLI ↔ API parity** | Same request models and services for `rank-query` and HTTP routes |
+| **Frontend** | Next.js App Router dashboard: multi-tab workflows, exports, run compare diff, error UX |
+| **Quality** | Ruff/Black/mypy, pytest (~90 tests), ESLint/tsc/build, GitHub Actions CI |
 
-- Pre-Week-1 and Week 1 focus on CLI ingestion, data normalization, scoring, and persistence.
-- Frontend is intentionally placeholder-only for environment parity before Week 3.
-- Supported input format is PropFlux-style JSON arrays only.
-- Schema and contract are documented in `docs/data-contract-propflux.md`.
+---
 
-## Monorepo Layout
+## Screenshots
 
-- `backend/` - FastAPI service and scoring pipeline code
-- `frontend/` - Next.js dashboard
-- `config/` - shared runtime configuration (for example scoring weights)
-- `docs/` - project and contributor documentation
-- `scripts/` - local developer automation helpers
-- `data/` - local input data (gitignored except placeholders)
-- `output/` - generated exports and artifacts (gitignored)
+_Add dashboard captures here before sharing the repo publicly._
 
-## Prerequisites
+| Control Panel — ranking results | Listing detail — diagnostics |
+|---------------------------------|------------------------------|
+| _placeholder_ | _placeholder_ |
 
-- Python `3.11.x`
-- Node.js `20.x` (LTS)
-- npm `10+`
-- Docker + Docker Compose plugin
+| Runs — compare diff | Source Library — validation |
+|---------------------|----------------------------|
+| _placeholder_ | _placeholder_ |
 
-## Quick Start
+---
 
-1. Copy environment templates:
-   - `cp .env.example .env`
-   - `cp backend/.env.example backend/.env`
-   - `cp frontend/.env.local.example frontend/.env.local`
-2. Install local dependencies:
-   - `./scripts/setup.sh`
+## Architecture
 
-## Docker Compose Workflow (Recommended)
+```mermaid
+flowchart LR
+  subgraph ingest [Ingest]
+    JSON[PropFlux JSON] --> CLI_ING[CLI ingest]
+    CLI_ING --> PG[(PostgreSQL)]
+  end
+  subgraph score [Score]
+    PG --> SCORE[advanced_v2 scoring]
+    SCORE --> PG
+  end
+  subgraph rank [Rank]
+    DASH[Dashboard] --> API[FastAPI /api/v1]
+    CLI[CLI rank-query] --> API
+    API --> RANK[Ranking service]
+    RANK --> PG
+  end
+  subgraph out [Outputs]
+    PG --> EXPORT[CSV / JSON export]
+    PG --> COMPARE[Run compare diff]
+  end
+```
 
-- Start full stack:
-  - `./scripts/compose-up.sh`
-- Stop stack:
-  - `./scripts/compose-down.sh`
-- Stream logs:
-  - `./scripts/compose-logs.sh`
-- Apply migrations in container:
-  - `./scripts/migrate-docker.sh`
+**Flow:** `ingest` → `score` → `rank-query` (filters + strategy preset + result window) → persisted `run_id` → listing detail / exports / compare.
 
-Services:
+---
 
-- frontend: `http://localhost:3000`
-- backend: `http://localhost:8000`
-- postgres: `localhost:5432`
+## Tech stack
 
-## Local Development
+- **Backend:** Python 3.11, FastAPI, SQLAlchemy 2, Alembic, Pydantic, Typer
+- **Database:** PostgreSQL 16
+- **Frontend:** Next.js 16, React 19, CSS modules
+- **Tooling:** Docker Compose, GitHub Actions, Ruff, Black, mypy, pytest, ESLint
 
-- Run backend:
-  - `./scripts/run-backend.sh`
-- Run frontend:
-  - `./scripts/run-frontend.sh`
-- Apply migrations locally:
-  - `./scripts/migrate.sh`
+---
 
-## CLI Workflow
+## Try it locally (~10 min)
 
-- Local CLI:
-  - `./scripts/cli-local.sh --help`
-- Docker CLI:
-  - `./scripts/cli-docker.sh --help`
+**Prerequisites:** Python 3.11, Node 20, Docker Compose (recommended).
 
-Core commands:
+```bash
+cp .env.example .env
+cp backend/.env.example backend/.env
+cp frontend/.env.local.example frontend/.env.local
+./scripts/setup.sh
+./scripts/compose-up.sh
+./scripts/migrate-docker.sh
+./scripts/demo-local.sh          # ingest fixture → score → rank (CLI)
+```
 
-- `ingest <path>`
-- `score <job-id>`
-- `validate-dataset <job-id>`
-- `analyze <job-id>`
-- `export <job-id> --format json|csv`
+Open [http://localhost:3000/dashboard/control](http://localhost:3000/dashboard/control) (requires `./scripts/run-backend.sh` and `./scripts/run-frontend.sh` in two terminals, or use the compose stack).
 
-## Quality Checks
+Step-by-step interviewer walkthrough: [`docs/demo.md`](docs/demo.md).
 
-- Lint all:
-  - `./scripts/lint.sh`
-- Format all:
-  - `./scripts/format.sh`
-- Run tests:
-  - `./scripts/test.sh`
+---
 
-## CI
+## Repository layout
 
-GitHub Actions workflow runs:
+| Path | Purpose |
+|------|---------|
+| `backend/` | API, services, CLI, migrations, tests |
+| `frontend/` | Next.js dashboard at `/dashboard/*` |
+| `config/scoring.yaml` | Scoring engine weights, flags, evaluation thresholds |
+| `backend/config/scoring_profiles.yaml` | Strategy presets and profile definitions |
+| `docs/` | Demo walkthrough, dashboard guide, configuration glossary, contracts |
+| `scripts/` | Compose, migrate, lint, test, CLI wrappers, `demo-local.sh` |
 
-- backend lint, type checks, migrations, and tests
-- frontend lint, type checks, and build checks
+---
 
-## Documentation Map
+## Quality gates
 
-- Project roadmap and execution plan:
-  - `/.cursor/rules/PROJECT_NOTE.md`
-- Week 2 explanation (simple language):
-  - `docs/week2-advanced-scoring-explained.md`
-- Evaluation and promotion/revert protocol:
-  - `docs/evaluation-review-protocol.md`
-- Principal audit findings and must-fix checklist:
-  - `docs/project-note-principal-audit.md`
-- MVP performance plan (including multi-dataset selection):
-  - `docs/mvp-performance-plan.md`
-- Immediate next feature-branch execution order:
-  - `docs/next-phase-execution-plan.md`
-- Current status and next phase kickoff checklist:
-  - `docs/current-project-status.md`
-- Documentation ownership/index:
-  - `docs/README.md`
+```bash
+./scripts/lint.sh
+./scripts/test.sh
+```
+
+CI on `main` / PRs: backend lint, format, mypy, migrations, pytest; frontend lint, typecheck, build, unit tests.
+
+---
+
+## Documentation
+
+| Doc | Use when |
+|-----|----------|
+| [`docs/demo.md`](docs/demo.md) | Live demo or interview walkthrough |
+| [`docs/dashboard.md`](docs/dashboard.md) | What each dashboard tab does |
+| [`docs/configuration.md`](docs/configuration.md) | Env vars and domain term definitions |
+| [`docs/cli-usage.md`](docs/cli-usage.md) | CLI command reference |
+| [`docs/data-contract-propflux.md`](docs/data-contract-propflux.md) | Ingestion JSON schema |
+| [`docs/setup-checklist.md`](docs/setup-checklist.md) | Fresh-clone verification |
+| [`docs/current-project-status.md`](docs/current-project-status.md) | Built vs deferred scope |
+
+---
+
+## Scope and limitations (read before evaluating)
+
+- **Heuristic scoring** — `advanced_v2` uses config-driven signals and ROI assumptions; weights are tunable but not market-calibrated in this repo.
+- **Single-operator tool** — no authentication or multi-tenant isolation.
+- **PropFlux JSON only** — array-root ingestion contract; no live portal scraping.
+- **Reproducibility** — runs store `profile_row_id` + profile backup payload; `profile_version` in API responses is a placeholder label today.
+- **Out of scope** — LLM enrichment, PDF export, hosted demo, cross-vendor entity resolution, production SLO/observability hardening.
+
+Deeper roadmap context: [`.cursor/rules/PROJECT_NOTE.md`](.cursor/rules/PROJECT_NOTE.md).

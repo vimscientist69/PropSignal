@@ -1,11 +1,12 @@
 # Setup Checklist
 
-Use this checklist to verify the project is ready for development after a fresh clone.
+Verify a fresh clone before demoing or developing. Run commands from **repository root**.
 
 ## Environment
 
-- [ ] Install Node.js 20.x and npm 10+
-- [ ] Install Python 3.11+ (3.11 recommended)
+- [ ] Node.js 20.x and npm 10+
+- [ ] Python 3.11.x
+- [ ] Docker + Docker Compose (recommended)
 - [ ] Copy env templates:
   - [ ] `cp .env.example .env`
   - [ ] `cp backend/.env.example backend/.env`
@@ -13,33 +14,38 @@ Use this checklist to verify the project is ready for development after a fresh 
 
 ## Bootstrap
 
-- [ ] Run `./scripts/setup.sh`
-- [ ] Confirm `.venv` exists and backend/frontend dependencies are installed
+- [ ] `./scripts/setup.sh`
+- [ ] `.venv` exists; backend and frontend dependencies installed
 
-## Docker Compose Baseline
+## Docker Compose (recommended)
 
-- [ ] Run `./scripts/compose-up.sh -d`
-- [ ] Confirm services are healthy (`postgres`, `backend`, `frontend`)
-- [ ] Run migrations in container: `./scripts/migrate-docker.sh`
-- [ ] Verify backend health endpoint: `http://localhost:8000/api/v1/health`
-- [ ] Verify frontend placeholder page: `http://localhost:3000`
+- [ ] `./scripts/compose-up.sh -d`
+- [ ] Services healthy: `postgres`, `backend`, `frontend`
+- [ ] `./scripts/migrate-docker.sh`
+- [ ] Backend health: `http://localhost:8000/api/v1/health`
+- [ ] Dashboard: `http://localhost:3000/dashboard/control`
 
-## Local Quality Gates
+## Local quality gates
 
-- [ ] Run `./scripts/lint.sh`
-- [ ] Run `./scripts/test.sh`
-- [ ] Run `npm --prefix frontend run build`
+- [ ] `./scripts/lint.sh`
+- [ ] `./scripts/test.sh`
+- [ ] `npm --prefix frontend run build`
 
-## Local Runtime Smoke Test
+## Demo seed (optional)
 
-- [ ] Run backend: `./scripts/run-backend.sh`
-- [ ] Run frontend: `./scripts/run-frontend.sh`
-- [ ] Open `http://localhost:3000` and confirm backend status card appears
+- [ ] Postgres reachable (compose or local)
+- [ ] `./scripts/reset-db-local.sh --yes` (optional, clean `job_id=1`)
+- [ ] `./scripts/demo-local.sh`
+- [ ] Two terminals: `./scripts/run-backend.sh` and `./scripts/run-frontend.sh` (if not using compose API/frontend)
+- [ ] Control Panel shows source `job:1`; Runs tab lists at least one run
 
-## CLI Smoke Checks
+## CLI smoke
 
-- [ ] Run `./scripts/cli-local.sh --help`
-- [ ] Run `./scripts/cli-local.sh ingest backend/tests/fixtures/propflux/valid_listings.json`
-- [ ] Run `./scripts/cli-local.sh score 1`
-- [ ] Run `./scripts/cli-local.sh analyze 1`
-- [ ] Run `./scripts/cli-local.sh export 1 --format json`
+- [ ] `./scripts/cli-local.sh --help`
+- [ ] `./scripts/cli-local.sh profiles-list`
+- [ ] `./scripts/cli-local.sh rank-query --dataset-source job:1 --strategy-preset rental_income --top-n 3` (after demo seed)
+
+## Destructive resets (when needed)
+
+- [ ] Docker DB: `./scripts/reset-db-docker.sh --yes`
+- [ ] Local DB: `./scripts/reset-db-local.sh --yes`
