@@ -146,6 +146,12 @@
   display: grid;
   gap: 0.65rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  align-content: start;
+}
+
+.sidePanel {
+  max-height: min(78vh, 920px);
+  overflow: auto;
 }
 
 .card {
@@ -188,6 +194,97 @@
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.4rem;
+}
+
+.runMetaPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.metaFacts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.55rem 0.75rem;
+  margin: 0;
+}
+
+.metaFact {
+  margin: 0;
+  min-width: 0;
+}
+
+.metaFact dt {
+  margin: 0 0 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #7b8dcc;
+}
+
+.metaFact dd {
+  margin: 0;
+  color: #dbe2ff;
+  font-size: 0.8rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.metaCode {
+  display: inline-block;
+  max-width: 100%;
+  font-size: 0.72rem;
+  color: #eef2ff;
+  word-break: break-all;
+}
+
+.exportSection {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.exportSection .blockTitle {
+  margin: 0;
+}
+
+.exportSection .exportGrid {
+  grid-template-columns: 1fr;
+  gap: 0.35rem;
+}
+
+.exportButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.15rem;
+  padding: 0.45rem 0.65rem;
+  border-radius: 0.58rem;
+  border: 1px solid #3a4f9a;
+  background: rgba(30, 44, 102, 0.9);
+  color: #d7dfff;
+  font-size: 0.78rem;
+  line-height: 1.25;
+  white-space: normal;
+  text-align: center;
+  cursor: pointer;
+  transition: filter 170ms ease;
+}
+
+.exportButton:hover:not(:disabled) {
+  filter: brightness(1.06);
+}
+
+.exportButton:focus-visible {
+  outline: 2px solid #8ea2ff;
+  outline-offset: 2px;
+}
+
+.exportButton:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }
 
 @media (max-width: 1120px) {

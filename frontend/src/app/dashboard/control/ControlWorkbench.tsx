@@ -726,132 +726,71 @@ export function ControlWorkbench() {
           <h2 className={styles.sectionTitle}>Run metadata</h2>
           <p className={styles.sectionHint}>Reproducibility: run id, profile, and dataset freshness.</p>
           {ranking ? (
-            <div className={styles.metaGrid}>
-              <p>
-                <span className={styles.mutedLabel}>run_id</span>
-                <br />
-                <code>{ranking.run_id}</code>{" "}
-                <button
-                  type="button"
-                  className={styles.iconBtn}
-                  onClick={() => void copyText(ranking.run_id).then(() => pushToast("Copied run id"))}
-                >
-                  Copy
-                </button>
-              </p>
-              <p>
-                profile_id: <strong>{ranking.resolved_profile.profile_id}</strong>
-              </p>
-              <p>profile_version: {ranking.resolved_profile.profile_version}</p>
-              <p>model_version: {ranking.dataset_context.model_version ?? "n/a"}</p>
-              <p>last_ingested_at: {ranking.dataset_context.last_ingested_at ?? "n/a"}</p>
-              <p>last_scored_at: {ranking.dataset_context.last_scored_at ?? "n/a"}</p>
+            <div className={styles.runMetaPanel}>
+              <dl className={styles.metaFacts}>
+                <div className={styles.metaFact}>
+                  <dt>Run ID</dt>
+                  <dd>
+                    <code className={styles.metaCode}>{ranking.run_id}</code>
+                    <button
+                      type="button"
+                      className={styles.iconBtn}
+                      onClick={() => void copyText(ranking.run_id).then(() => pushToast("Copied run id"))}
+                    >
+                      Copy
+                    </button>
+                  </dd>
+                </div>
+                <div className={styles.metaFact}>
+                  <dt>Profile</dt>
+                  <dd>{ranking.resolved_profile.profile_id}</dd>
+                </div>
+                <div className={styles.metaFact}>
+                  <dt>Profile version</dt>
+                  <dd>{ranking.resolved_profile.profile_version}</dd>
+                </div>
+                <div className={styles.metaFact}>
+                  <dt>Model</dt>
+                  <dd>{ranking.dataset_context.model_version ?? "n/a"}</dd>
+                </div>
+                <div className={styles.metaFact}>
+                  <dt>Last ingested</dt>
+                  <dd>{ranking.dataset_context.last_ingested_at ?? "n/a"}</dd>
+                </div>
+                <div className={styles.metaFact}>
+                  <dt>Last scored</dt>
+                  <dd>{ranking.dataset_context.last_scored_at ?? "n/a"}</dd>
+                </div>
+              </dl>
+
               <p className={styles.sectionHint}>
-                Summary rows match the results table. “Full detail” adds the same payload as the Detail action
-                (listing_core, score_summary, diagnostics) per listing.
+                Summary exports match the results table. Full-detail exports include listing_core, score_summary,
+                and diagnostics per listing.
               </p>
-              <p className={styles.blockTitle}>Summary</p>
-              <div className={styles.exportGrid}>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => exportWindow("csv")}
-                >
-                  Export window CSV
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => exportWindow("json")}
-                >
-                  Export window JSON
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => exportShortlistOnly("csv")}
-                >
-                  Export shortlist CSV
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => exportShortlistOnly("json")}
-                >
-                  Export shortlist JSON
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => void exportServerRun("csv", false)}
-                >
-                  Download full run (server CSV)
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => void exportServerRun("json", false)}
-                >
-                  Download full run (server JSON)
-                </button>
-              </div>
-              <p className={styles.blockTitle}>With full listing detail</p>
-              <div className={styles.exportGrid}>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => void exportWindowWithDetail("csv")}
-                >
-                  Export window CSV (full detail)
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => void exportWindowWithDetail("json")}
-                >
-                  Export window JSON (full detail)
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => void exportShortlistWithDetail("csv")}
-                >
-                  Export shortlist CSV (full detail)
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => void exportShortlistWithDetail("json")}
-                >
-                  Export shortlist JSON (full detail)
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => void exportServerRun("csv", true)}
-                >
-                  Download full run — server CSV (full detail)
-                </button>
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  disabled={exportDetailBusy}
-                  onClick={() => void exportServerRun("json", true)}
-                >
-                  Download full run — server JSON (full detail)
-                </button>
-              </div>
+
+              <section className={styles.exportSection}>
+                <h3 className={styles.blockTitle}>Summary</h3>
+                <div className={styles.exportGrid}>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => exportWindow("csv")}>Window CSV</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => exportWindow("json")}>Window JSON</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => exportShortlistOnly("csv")}>Shortlist CSV</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => exportShortlistOnly("json")}>Shortlist JSON</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => void exportServerRun("csv", false)}>Full run CSV (server)</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => void exportServerRun("json", false)}>Full run JSON (server)</button>
+                </div>
+              </section>
+
+              <section className={styles.exportSection}>
+                <h3 className={styles.blockTitle}>With full listing detail</h3>
+                <div className={styles.exportGrid}>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => void exportWindowWithDetail("csv")}>Window CSV</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => void exportWindowWithDetail("json")}>Window JSON</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => void exportShortlistWithDetail("csv")}>Shortlist CSV</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => void exportShortlistWithDetail("json")}>Shortlist JSON</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => void exportServerRun("csv", true)}>Full run CSV (server)</button>
+                  <button type="button" className={styles.exportButton} disabled={exportDetailBusy} onClick={() => void exportServerRun("json", true)}>Full run JSON (server)</button>
+                </div>
+              </section>
             </div>
           ) : (
             <p className={styles.mutedLabel}>Run ranking to populate metadata and export actions.</p>
