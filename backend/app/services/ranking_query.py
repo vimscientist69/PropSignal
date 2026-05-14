@@ -4,6 +4,7 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -273,15 +274,13 @@ def _freshness_iso(db: Session, job_ids: list[int]) -> tuple[str | None, str | N
         select(func.max(ScoreResult.created_at)).where(ScoreResult.job_id.in_(job_ids))
     )
 
-    def _iso(dt: Any) -> str | None:
+    def _iso(dt: datetime | None) -> str | None:
         if dt is None:
             return None
         from datetime import UTC
 
-        if getattr(dt, "tzinfo", None) is None:
-            dt = dt.replace(tzinfo=UTC)
-        text = dt.isoformat()
-        return text.replace("+00:00", "Z")
+        aware = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt
+        return aware.isoformat().replace("+00:00", "Z")
 
     return _iso(last_ingested), _iso(last_scored)
 
