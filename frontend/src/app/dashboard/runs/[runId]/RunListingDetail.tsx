@@ -2,8 +2,10 @@
 
 import { useEffect, useState } from "react";
 
+import { cn } from "@/lib/utils";
+
 import { JsonTree } from "../../components/JsonTree";
-import styles from "../../dashboard.module.css";
+import { styles } from "../../dashboardPageStyles";
 import { fetchJson, formatThrownApiError } from "../../lib/api";
 import type { ListingDetail } from "../../lib/types";
 
@@ -38,7 +40,7 @@ export function RunListingDetail({ runId, listingId }: { runId: string; listingI
   }, [runId, listingId]);
 
   if (loading) {
-    return <div className={styles.skeleton} style={{ width: "100%" }} aria-hidden />;
+    return <div className={cn(styles.skeleton, "h-24 w-full")} aria-hidden />;
   }
   if (detailError) {
     return (

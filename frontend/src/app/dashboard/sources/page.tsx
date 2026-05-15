@@ -8,11 +8,12 @@ import { SectionCard } from "@/components/dashboard/section-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 import { useToast } from "../components/DashboardChrome";
 import { JsonTree } from "../components/JsonTree";
-import { selectFilterClass, styles } from "../dashboardPageStyles";
+import { styles } from "../dashboardPageStyles";
 import { API_BASE, fetchJson, formatThrownApiError, sourcesQuery } from "../lib/api";
 import type { SourceSummary } from "../lib/types";
 
@@ -71,9 +72,8 @@ export default function SourcesPage() {
             <Label htmlFor="source-status-filter" className={styles.filterLabel}>
               Status
             </Label>
-            <select
+            <Select
               id="source-status-filter"
-              className={selectFilterClass}
               value={status}
               onChange={(e) => setStatus(e.target.value)}
               aria-label="Filter by ingestion job status"
@@ -85,7 +85,7 @@ export default function SourcesPage() {
               <option value="completed_with_errors">Completed with errors</option>
               <option value="analyzed">Analyzed</option>
               <option value="failed">Failed</option>
-            </select>
+            </Select>
           </div>
           <div className={styles.filterFieldGrow}>
             <Label htmlFor="source-search" className={styles.filterLabel}>

@@ -1,15 +1,27 @@
 "use client";
 
 import Link from "next/link";
+import { Copy, ExternalLink } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 
+import { LiveBadge } from "@/components/dashboard/live-badge";
+import { SectionCard } from "@/components/dashboard/section-card";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Select } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
+
 import { RunCompareDiff } from "../components/RunCompareDiff";
-import styles from "../dashboard.module.css";
+import { useToast } from "../components/DashboardChrome";
+import { styles } from "../dashboardPageStyles";
 import { compareRunDetails, type RunCompareResult } from "../lib/compareRuns";
 import { API_BASE, fetchJson, formatThrownApiError } from "../lib/api";
 import type { RunDetailResponse, RunSummaryItem, RunsListResponse } from "../lib/types";
 
+const exportBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
 export default function RunsPage() {
+  const { pushToast } = useToast();
   const [data, setData] = useState<RunsListResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [baseline, setBaseline] = useState("");
@@ -65,8 +77,8 @@ export default function RunsPage() {
   return (
     <main className={styles.main}>
       <header className={styles.topHeader}>
-        <div>
-          <p className={styles.envBadge}>History</p>
+        <div className="space-y-2">
+          <LiveBadge label="Run history" />
           <h1 className={styles.title}>Runs</h1>
           <p className={styles.subTitle}>Browse persisted ranking runs and reopen exports or detail context.</p>
         </div>
@@ -76,22 +88,24 @@ export default function RunsPage() {
         <div role="alert" className={styles.errorBanner}>
           <p className={styles.errorBannerTitle}>Request failed</p>
           <pre className={styles.errorMultiline}>{error}</pre>
-          <p className={styles.mutedLabel} style={{ marginTop: "0.45rem", marginBottom: 0 }}>
-            API: <kbd>{API_BASE}</kbd>
+          <p className={cn(styles.mutedLabel, "mt-2")}>
+            API: <kbd className="font-mono text-[11px] text-slate-400">{API_BASE}</kbd>
           </p>
         </div>
       ) : null}
 
-      <section className={styles.card}>
-        <h2 className={styles.sectionTitle}>Compare mode</h2>
-        <p className={styles.sectionHint}>
-          Pick a baseline and candidate run, then compare metadata, request config, and listing score/rank deltas.
-        </p>
+      <SectionCard
+        title="Compare mode"
+        subtitle="Pick a baseline and candidate run, then compare metadata, request config, and listing score/rank deltas."
+        light
+      >
         <div className={styles.comparePicker}>
-          <label className={styles.comparePickerField}>
-            <span className={styles.sourceFilterLabel}>Baseline</span>
-            <select
-              className={styles.sourceStatusSelect}
+          <div className={styles.comparePickerField}>
+            <Label htmlFor="compare-baseline" className={styles.filterLabel}>
+              Baseline
+            </Label>
+            <Select
+              id="compare-baseline"
               value={baseline}
               onChange={(e) => {
                 setBaseline(e.target.value);
@@ -105,12 +119,14 @@ export default function RunsPage() {
                   {r.run_id}
                 </option>
               ))}
-            </select>
-          </label>
-          <label className={styles.comparePickerField}>
-            <span className={styles.sourceFilterLabel}>Candidate</span>
-            <select
-              className={styles.sourceStatusSelect}
+            </Select>
+          </div>
+          <div className={styles.comparePickerField}>
+            <Label htmlFor="compare-candidate" className={styles.filterLabel}>
+              Candidate
+            </Label>
+            <Select
+              id="compare-candidate"
               value={candidate}
               onChange={(e) => {
                 setCandidate(e.target.value);
@@ -124,48 +140,56 @@ export default function RunsPage() {
                   {r.run_id}
                 </option>
               ))}
-            </select>
-          </label>
+            </Select>
+          </div>
         </div>
-        <p className={styles.mutedLabel}>
+        <p className={styles.metaInline}>
           Selected: <code>{baseline || "—"}</code> vs <code>{candidate || "—"}</code>
         </p>
         <div className={styles.actions}>
-          <button
+          <Button
             type="button"
-            className={styles.primaryButton}
+            variant="primary"
             disabled={!baseline || !candidate || compareLoading || items.length === 0}
             onClick={() => void runCompare()}
           >
             {compareLoading ? "Comparing…" : "Compare runs"}
-          </button>
+          </Button>
           {baseline ? (
-            <Link className={styles.secondaryButton} href={`/dashboard/runs/${baseline}`}>
-              Open baseline
-            </Link>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/dashboard/runs/${baseline}`}>Open baseline</Link>
+            </Button>
           ) : null}
           {candidate ? (
-            <Link className={styles.secondaryButton} href={`/dashboard/runs/${candidate}`}>
-              Open candidate
-            </Link>
+            <Button variant="outline" size="sm" asChild>
+              <Link href={`/dashboard/runs/${candidate}`}>Open candidate</Link>
+            </Button>
           ) : null}
         </div>
 
         {compareError ? (
-          <div className={styles.error} style={{ marginTop: "0.75rem" }}>
+          <div className={cn(styles.error, "mt-3")}>
             <pre className={styles.errorMultiline}>{compareError}</pre>
           </div>
         ) : null}
 
         {compareResult ? (
-          <div style={{ marginTop: "1rem" }}>
+          <div className="mt-4 border-t border-slate-800/80 pt-4">
             <RunCompareDiff result={compareResult} />
           </div>
         ) : null}
-      </section>
+      </SectionCard>
 
       <section className={styles.resultsPanel}>
-        <h2 className={styles.sectionTitle}>Run history</h2>
+        <div className={styles.rowBetween}>
+          <h2 className={styles.sectionTitle}>Run history</h2>
+          {data && data.items.length > 0 ? (
+            <span className={styles.rowCountBadge}>{data.items.length} runs</span>
+          ) : null}
+        </div>
+        {!error && data && data.items.length > 0 ? (
+          <p className={styles.sectionHint}>Scroll horizontally for row actions.</p>
+        ) : null}
         {!data && !error ? (
           <p className={styles.mutedLabel}>Loading…</p>
         ) : error ? (
@@ -173,8 +197,8 @@ export default function RunsPage() {
         ) : data !== null && data.items.length === 0 ? (
           <p className={styles.mutedLabel}>No runs yet — execute a ranking from the Control Panel.</p>
         ) : data !== null ? (
-          <div className={styles.dataTableWrap}>
-            <table className={styles.dataTable}>
+          <div className={styles.runsTableWrap}>
+            <table className={cn(styles.dataTable, styles.runsDataTable)}>
               <thead>
                 <tr>
                   <th>run_id</th>
@@ -189,44 +213,55 @@ export default function RunsPage() {
               </thead>
               <tbody>
                 {data.items.map((r) => (
-                  <tr key={r.run_id}>
+                  <tr key={r.run_id} className={styles.tableRow}>
                     <td>
-                      <code>{r.run_id}</code>
+                      <Link href={`/dashboard/runs/${r.run_id}`} className={styles.runIdCell}>
+                        {r.run_id}
+                      </Link>
                     </td>
-                    <td>{r.created_at}</td>
+                    <td className={styles.cellMono}>{r.created_at}</td>
                     <td>{r.strategy_preset}</td>
-                    <td>{r.profile_id}</td>
-                    <td>{r.source_count}</td>
+                    <td className={styles.cellMono}>{r.profile_id}</td>
+                    <td className={styles.cellHighlight}>{r.source_count}</td>
                     <td>{r.records_considered}</td>
-                    <td>{r.result_count}</td>
-                    <td>
+                    <td className={styles.cellHighlight}>{r.result_count}</td>
+                    <td className={styles.tableActionsCol}>
                       <div className={styles.rowActions}>
-                        <Link className={styles.iconBtn} href={`/dashboard/runs/${r.run_id}`}>
-                          View
-                        </Link>
-                        <button
+                        <Button variant="outline" size="sm" className={styles.rowActionBtn} asChild>
+                          <Link href={`/dashboard/runs/${r.run_id}`}>View</Link>
+                        </Button>
+                        <Button
                           type="button"
-                          className={styles.iconBtn}
-                          onClick={() => void navigator.clipboard.writeText(r.run_id)}
+                          variant="ghost"
+                          size="sm"
+                          className={styles.rowActionBtn}
+                          onClick={() => {
+                            void navigator.clipboard.writeText(r.run_id);
+                            pushToast("Run id copied");
+                          }}
                         >
-                          Copy id
-                        </button>
-                        <a
-                          className={styles.iconBtn}
-                          href={`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"}/api/v1/runs/${r.run_id}/export?format=json`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Export JSON
-                        </a>
-                        <a
-                          className={styles.iconBtn}
-                          href={`${process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000"}/api/v1/runs/${r.run_id}/export?format=json&listing_detail=true`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          JSON + detail
-                        </a>
+                          <Copy className="h-3 w-3" aria-hidden />
+                          Copy
+                        </Button>
+                        <Button variant="ghost" size="sm" className={styles.rowActionBtn} asChild>
+                          <a
+                            href={`${exportBase}/api/v1/runs/${r.run_id}/export?format=json`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            <ExternalLink className="h-3 w-3" aria-hidden />
+                            JSON
+                          </a>
+                        </Button>
+                        <Button variant="ghost" size="sm" className={styles.rowActionBtn} asChild>
+                          <a
+                            href={`${exportBase}/api/v1/runs/${r.run_id}/export?format=json&listing_detail=true`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Detail
+                          </a>
+                        </Button>
                       </div>
                     </td>
                   </tr>

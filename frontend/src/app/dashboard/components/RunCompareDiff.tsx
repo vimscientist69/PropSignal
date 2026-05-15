@@ -1,6 +1,8 @@
 "use client";
 
-import styles from "../dashboard.module.css";
+import { cn } from "@/lib/utils";
+
+import { styles } from "../dashboardPageStyles";
 import { formatDelta, type RunCompareResult } from "../lib/compareRuns";
 
 function DiffTable({ rows, emptyLabel }: { rows: RunCompareResult["metadata_diffs"]; emptyLabel: string }) {
@@ -8,8 +10,8 @@ function DiffTable({ rows, emptyLabel }: { rows: RunCompareResult["metadata_diff
     return <p className={styles.mutedLabel}>{emptyLabel}</p>;
   }
   return (
-    <div className={styles.dataTableWrap}>
-      <table className={styles.dataTable}>
+    <div className={styles.runsTableWrap}>
+      <table className={cn(styles.dataTable, styles.runsDataTable)}>
         <thead>
           <tr>
             <th>Field</th>
@@ -21,7 +23,7 @@ function DiffTable({ rows, emptyLabel }: { rows: RunCompareResult["metadata_diff
           {rows.map((row) => (
             <tr key={row.field}>
               <td>
-                <code>{row.field}</code>
+                <code className={styles.runIdCell}>{row.field}</code>
               </td>
               <td className={styles.diffRemoved}>{row.baseline}</td>
               <td className={styles.diffAdded}>{row.candidate}</td>
@@ -93,8 +95,8 @@ export function RunCompareDiff({ result }: { result: RunCompareResult }) {
             {result.listing_diffs.length === 0 ? (
               <p className={styles.mutedLabel}>No listing-level differences in persisted results.</p>
             ) : (
-              <div className={styles.dataTableWrap}>
-                <table className={styles.dataTable}>
+              <div className={styles.runsTableWrap}>
+                <table className={cn(styles.dataTable, styles.runsDataTable)}>
                   <thead>
                     <tr>
                       <th>Listing</th>
@@ -111,7 +113,7 @@ export function RunCompareDiff({ result }: { result: RunCompareResult }) {
                   <tbody>
                     {result.listing_diffs.map((row) => (
                       <tr key={row.listing_id}>
-                        <td>{row.listing_id}</td>
+                        <td className={styles.cellMono}>{row.listing_id}</td>
                         <td>
                           <span className={styles.chip}>
                             {row.status === "baseline_only"

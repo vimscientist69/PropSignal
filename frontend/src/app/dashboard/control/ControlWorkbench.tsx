@@ -6,11 +6,12 @@ import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "re
 import { LiveBadge } from "@/components/dashboard/live-badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 import { JsonTree } from "../components/JsonTree";
 import { useToast } from "../components/DashboardChrome";
-import { checkboxClass, selectClass, styles } from "./controlWorkbenchStyles";
+import { checkboxClass, styles } from "./controlWorkbenchStyles";
 import { API_BASE, fetchJson, fetchListingDetailsForRun, formatThrownApiError } from "../lib/api";
 import { buildExportMetadata, exportRankingCsv, exportRankingJson } from "../lib/exportRanking";
 import type {
@@ -689,13 +690,13 @@ export function ControlWorkbench() {
 
           <div className={styles.card}>
             <h3 className={styles.blockTitle}>Strategy profile</h3>
-            <select className={selectClass} value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
+            <Select value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
               {profiles.map((profile) => (
                 <option key={profile.preset} value={profile.preset}>
                   {profile.label}
                 </option>
               ))}
-            </select>
+            </Select>
             <div className={styles.overrideGrid}>
               {profileDetail?.enabled_signals.map((signal) => {
                 const bounds = profileDetail.safe_override_bounds[signal];

@@ -1,5 +1,3 @@
-import { cn } from "@/lib/utils";
-
 /** PropFlux-style Tailwind classes shared across dashboard tabs. */
 export const styles = {
   main: "mx-auto w-full max-w-[1600px] space-y-4 px-3 py-4 md:space-y-6 md:px-4 md:py-6",
@@ -99,6 +97,19 @@ export const styles = {
   rowActionBtn: "h-7 shrink-0 px-2 text-[10px]",
   skeleton: "h-4 animate-pulse rounded-md bg-slate-800/80",
   urlRow: "mb-2 flex flex-wrap items-center gap-2 text-xs [&_a]:text-indigo-400 [&_a]:underline",
+  comparePicker: "flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end",
+  comparePickerField: "flex min-w-0 flex-1 flex-col gap-1.5 sm:min-w-[14rem] sm:max-w-md",
+  compareDiff: "space-y-4",
+  compareSummary: "grid grid-cols-2 gap-3 sm:grid-cols-4",
+  compareSection: "space-y-2",
+  diffAdded: "font-mono text-[11px] text-emerald-400",
+  diffRemoved: "font-mono text-[11px] text-rose-300",
+  runsTableWrap:
+    "custom-scroll max-h-[min(52vh,520px)] overflow-x-auto overflow-y-auto overscroll-x-contain rounded-xl border border-slate-800/80 bg-slate-950/30",
+  runsDataTable: "w-max min-w-full",
+  runIdCell: "font-mono text-[11px] text-indigo-300/90",
+  metaInline: "text-xs text-slate-400 [&_code]:font-mono [&_code]:text-[11px] [&_code]:text-indigo-300/90",
+  exportLinkGrid: "flex max-w-lg flex-col gap-1.5 sm:max-w-xl",
 } as const;
 
 export const jsonTreeStyles = {
@@ -113,14 +124,13 @@ export const jsonTreeStyles = {
 export const inputClass =
   "w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/40";
 
-export const selectClass =
-  "w-full rounded-lg border border-slate-800 bg-slate-900/80 px-3 py-2 text-sm text-slate-100 outline-none focus-visible:border-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500/40";
-
-/** Native select chevron needs extra inset from the right edge. */
-export const selectFilterClass = cn(
+export {
   selectClass,
-  "pr-10",
-);
+  Select,
+  type SelectProps,
+  /** @deprecated Use Select */
+  selectClass as selectFilterClass,
+} from "@/components/ui/select";
 
 export const checkboxClass =
   "h-3.5 w-3.5 rounded border-slate-700 bg-slate-900 text-indigo-400 accent-indigo-500 focus-visible:ring-2 focus-visible:ring-indigo-500";

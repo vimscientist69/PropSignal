@@ -1,10 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { LiveBadge } from "@/components/dashboard/live-badge";
+import { SectionCard } from "@/components/dashboard/section-card";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
 import { JsonTree } from "../../components/JsonTree";
-import styles from "../../dashboard.module.css";
+import { styles } from "../../dashboardPageStyles";
 import { API_BASE, fetchJson, formatThrownApiError } from "../../lib/api";
 import type { RunDetailResponse } from "../../lib/types";
 
@@ -38,47 +44,38 @@ export default function RunDetailPage() {
     setListingId(null);
   }, [runId]);
 
+  const exportLinks = [
+    { label: "Export JSON", href: `${API_BASE}/api/v1/runs/${runId}/export?format=json` },
+    {
+      label: "Export JSON (full detail)",
+      href: `${API_BASE}/api/v1/runs/${runId}/export?format=json&listing_detail=true`,
+    },
+    { label: "Export CSV", href: `${API_BASE}/api/v1/runs/${runId}/export?format=csv` },
+    {
+      label: "Export CSV (full detail)",
+      href: `${API_BASE}/api/v1/runs/${runId}/export?format=csv&listing_detail=true`,
+    },
+  ];
+
   return (
     <main className={styles.main}>
       <header className={styles.topHeader}>
-        <div>
-          <p className={styles.envBadge}>Run detail</p>
-          <h1 className={styles.title}>{runId || "…"}</h1>
+        <div className="space-y-2">
+          <LiveBadge label="Run detail" />
+          <h1 className={cn(styles.title, "font-mono text-base md:text-lg")}>{runId || "…"}</h1>
           <p className={styles.subTitle}>Request snapshot, persisted results, and listing drill-down.</p>
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" asChild>
+            <Link href="/dashboard/runs">← All runs</Link>
+          </Button>
         </div>
-        <div className={styles.exportGrid} style={{ maxWidth: "520px" }}>
-          <a
-            className={styles.secondaryButton}
-            href={`${API_BASE}/api/v1/runs/${runId}/export?format=json`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Export JSON
-          </a>
-          <a
-            className={styles.secondaryButton}
-            href={`${API_BASE}/api/v1/runs/${runId}/export?format=json&listing_detail=true`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Export JSON (full detail)
-          </a>
-          <a
-            className={styles.secondaryButton}
-            href={`${API_BASE}/api/v1/runs/${runId}/export?format=csv`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Export CSV
-          </a>
-          <a
-            className={styles.secondaryButton}
-            href={`${API_BASE}/api/v1/runs/${runId}/export?format=csv&listing_detail=true`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Export CSV (full detail)
-          </a>
+        <div className={styles.exportLinkGrid}>
+          {exportLinks.map((link) => (
+            <Button key={link.href} variant="outline" size="sm" className={styles.exportBtn} asChild>
+              <a href={link.href} target="_blank" rel="noopener noreferrer">
+                {link.label}
+              </a>
+            </Button>
+          ))}
         </div>
       </header>
 
@@ -86,8 +83,8 @@ export default function RunDetailPage() {
         <div role="alert" className={styles.errorBanner}>
           <p className={styles.errorBannerTitle}>Request failed</p>
           <pre className={styles.errorMultiline}>{error}</pre>
-          <p className={styles.mutedLabel} style={{ marginTop: "0.45rem", marginBottom: 0 }}>
-            API: <kbd>{API_BASE}</kbd>
+          <p className={cn(styles.mutedLabel, "mt-2")}>
+            API: <kbd className="font-mono text-[11px] text-slate-400">{API_BASE}</kbd>
           </p>
         </div>
       ) : null}
@@ -98,9 +95,8 @@ export default function RunDetailPage() {
         <p className={styles.mutedLabel}>Fix the error above to load this run.</p>
       ) : run !== null ? (
         <>
-          <section className={styles.card}>
-            <h2 className={styles.sectionTitle}>Snapshot</h2>
-            <p className={styles.metaGrid}>
+          <SectionCard title="Snapshot" subtitle="Persisted request and result window for this run." light>
+            <p className={styles.metaInline}>
               Created {run.created_at} · fingerprint <code>{run.query_fingerprint}</code>
             </p>
             <div className={styles.detailBlock}>
@@ -111,13 +107,16 @@ export default function RunDetailPage() {
               <h4>result_window</h4>
               <JsonTree data={run.result_window} />
             </div>
-          </section>
+          </SectionCard>
 
           <section className={styles.bottomGrid}>
             <section className={styles.resultsPanel}>
-              <h2 className={styles.sectionTitle}>Results in this run</h2>
-              <div className={styles.dataTableWrap}>
-                <table className={styles.dataTable}>
+              <div className={styles.rowBetween}>
+                <h2 className={styles.sectionTitle}>Results in this run</h2>
+                <span className={styles.rowCountBadge}>{run.results.length} listings</span>
+              </div>
+              <div className={styles.runsTableWrap}>
+                <table className={cn(styles.dataTable, styles.runsDataTable)}>
                   <thead>
                     <tr>
                       <th>ID</th>
@@ -128,14 +127,30 @@ export default function RunDetailPage() {
                   </thead>
                   <tbody>
                     {run.results.map((r) => (
-                      <tr key={r.listing_id} className={listingId === r.listing_id ? styles.selectedRow : undefined}>
-                        <td>{r.listing_id}</td>
-                        <td>{r.score.toFixed(4)}</td>
+                      <tr
+                        key={r.listing_id}
+                        className={cn(
+                          styles.tableRow,
+                          listingId === r.listing_id && styles.selectedRow,
+                        )}
+                        onClick={() => setListingId(r.listing_id)}
+                      >
+                        <td className={styles.cellMono}>{r.listing_id}</td>
+                        <td className={styles.cellHighlight}>{r.score.toFixed(4)}</td>
                         <td>{r.confidence.toFixed(2)}</td>
-                        <td>
-                          <button type="button" className={styles.iconBtn} onClick={() => setListingId(r.listing_id)}>
+                        <td className={styles.tableActionsCol}>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className={styles.rowActionBtn}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setListingId(r.listing_id);
+                            }}
+                          >
                             Load detail
-                          </button>
+                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -146,7 +161,7 @@ export default function RunDetailPage() {
             <section className={styles.detailPanel}>
               <h2 className={styles.sectionTitle}>Listing detail</h2>
               {listingId === null ? (
-                <p className={styles.mutedLabel}>Choose “Load detail” for a row.</p>
+                <p className={styles.mutedLabel}>Select a row or choose “Load detail”.</p>
               ) : (
                 <RunListingDetail key={`${runId}-${listingId}`} runId={runId} listingId={listingId} />
               )}
