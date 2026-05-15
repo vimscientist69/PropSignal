@@ -621,8 +621,13 @@ export function ControlWorkbench() {
                       }
                     />
                     <div className={styles.sourceItemBody}>
-                      <span className={styles.sourceItemTitle}>{source.source}</span>
-                      <span className={styles.sourceItemMeta}>
+                      <span className={styles.sourceItemTitle} title={source.source}>
+                        {source.source}
+                      </span>
+                      <span
+                        className={styles.sourceItemMeta}
+                        title={`${source.status} · ${source.records_valid}/${source.records_total} valid`}
+                      >
                         {source.status} · {source.records_valid}/{source.records_total} valid
                       </span>
                     </div>
@@ -753,9 +758,14 @@ export function ControlWorkbench() {
         </form>
 
         <section className={styles.sidePanel}>
-          <h2 className={styles.sectionTitle}>Run metadata</h2>
-          <p className={styles.sectionHint}>Reproducibility: run id, profile, and dataset freshness.</p>
+          <div className={styles.sidePanelHeader}>
+            <h2 className={styles.sectionTitle}>Run metadata</h2>
+            <p className={styles.sectionHint}>
+              Reproducibility: run id, profile, and dataset freshness.
+            </p>
+          </div>
           {ranking ? (
+            <div className={styles.sidePanelContent}>
             <div className={styles.metaGrid}>
               <div className={styles.metaField}>
                 <span className={styles.mutedLabel}>run_id</span>
@@ -774,25 +784,33 @@ export function ControlWorkbench() {
               </div>
               <div className={styles.metaField}>
                 <span className={styles.mutedLabel}>profile_id</span>
-                <p className="mt-1 font-medium text-slate-200">{ranking.resolved_profile.profile_id}</p>
+                <p className={styles.metaFieldValue} title={ranking.resolved_profile.profile_id}>
+                  {ranking.resolved_profile.profile_id}
+                </p>
               </div>
               <div className={styles.metaField}>
                 <span className={styles.mutedLabel}>profile_version</span>
-                <p className="mt-1">{ranking.resolved_profile.profile_version}</p>
+                <p className={cn(styles.metaFieldValue, "font-normal")}>
+                  {ranking.resolved_profile.profile_version}
+                </p>
               </div>
               <div className={styles.metaField}>
                 <span className={styles.mutedLabel}>model_version</span>
-                <p className="mt-1">{ranking.dataset_context.model_version ?? "n/a"}</p>
+                <p className={cn(styles.metaFieldValue, "font-normal")}>
+                  {ranking.dataset_context.model_version ?? "n/a"}
+                </p>
               </div>
-              <div className={cn(styles.metaField, "sm:col-span-2")}>
+              <div className={cn(styles.metaField, "md:col-span-2")}>
                 <span className={styles.mutedLabel}>last_ingested_at</span>
                 <p className="mt-1 break-all font-mono text-[11px]">
                   {ranking.dataset_context.last_ingested_at ?? "n/a"}
                 </p>
               </div>
-              <div className={cn(styles.metaField, "sm:col-span-2")}>
+              <div className={cn(styles.metaField, "md:col-span-2")}>
                 <span className={styles.mutedLabel}>last_scored_at</span>
-                <p className="mt-1">{ranking.dataset_context.last_scored_at ?? "n/a"}</p>
+                <p className={cn(styles.metaFieldValue, "font-normal")}>
+                  {ranking.dataset_context.last_scored_at ?? "n/a"}
+                </p>
               </div>
               <div className={styles.exportSection}>
               <p className={styles.sectionHint}>
@@ -919,8 +937,11 @@ export function ControlWorkbench() {
               </div>
               </div>
             </div>
+            </div>
           ) : (
-            <p className={styles.mutedLabel}>Run ranking to populate metadata and export actions.</p>
+            <p className={cn(styles.mutedLabel, "mt-4")}>
+              Run ranking to populate metadata and export actions.
+            </p>
           )}
         </section>
       </section>

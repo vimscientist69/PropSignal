@@ -13,7 +13,7 @@ export const styles = {
   errorBannerTitle: "text-xs font-semibold text-red-50",
   errorMultiline: "mt-1 whitespace-pre-wrap break-words font-mono text-[11px] font-medium text-red-100/90",
   mutedLabel: "text-xs text-slate-500",
-  mainGrid: "grid gap-4 lg:grid-cols-[1.55fr_1fr]",
+  mainGrid: "grid min-w-0 gap-4 lg:grid-cols-[1.55fr_1fr]",
   controlPanel:
     "overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900/80 shadow-[0_18px_60px_rgba(15,23,42,0.9)]",
   rowBetween: "flex flex-wrap items-center justify-between gap-2",
@@ -23,13 +23,15 @@ export const styles = {
   sectionHint: "text-xs text-slate-500",
   card: "rounded-xl border border-slate-800/80 bg-slate-950/30 p-3 space-y-3",
   blockTitle: "text-[11px] font-semibold uppercase tracking-wide text-slate-500",
-  sourceList: "grid gap-2 sm:grid-cols-2",
+  sourceList: "grid grid-cols-1 gap-2 md:grid-cols-2",
   error: "rounded-xl border border-red-900/40 bg-red-950/30 px-3 py-2 text-xs text-red-200",
   sourceItem:
-    "flex cursor-pointer items-center gap-3 rounded-xl border border-slate-800/80 bg-slate-950/60 px-3 py-2.5 transition-colors hover:bg-slate-900/80 has-[:checked]:border-indigo-500/40 has-[:checked]:bg-slate-900/90 has-[:checked]:shadow-sm has-[:checked]:shadow-indigo-500/10",
-  sourceItemBody: "flex min-w-0 flex-1 items-center justify-between gap-4",
-  sourceItemTitle: "truncate text-sm font-medium text-slate-200",
-  sourceItemMeta: "shrink-0 text-right text-[11px] text-slate-500",
+    "flex min-w-0 cursor-pointer items-center gap-3 overflow-hidden rounded-xl border border-slate-800/80 bg-slate-950/60 px-3 py-2.5 transition-colors hover:bg-slate-900/80 has-[:checked]:border-indigo-500/40 has-[:checked]:bg-slate-900/90 has-[:checked]:shadow-sm has-[:checked]:shadow-indigo-500/10",
+  sourceItemBody:
+    "flex min-w-0 flex-1 flex-col gap-1 md:flex-row md:items-center md:justify-between md:gap-3",
+  sourceItemTitle: "min-w-0 break-words text-sm font-medium leading-snug text-slate-200 md:truncate",
+  sourceItemMeta:
+    "min-w-0 break-words text-[11px] leading-snug text-slate-500 md:max-w-[58%] md:truncate md:text-right",
   statusGrid: "grid gap-2 sm:grid-cols-2 lg:grid-cols-3",
   statusCell:
     "rounded-xl border border-slate-800/80 bg-slate-950/60 p-3 [&>strong]:text-sm [&>strong]:text-slate-200 [&>p]:mt-1 [&>p]:text-[11px] [&>p]:text-slate-500",
@@ -42,11 +44,14 @@ export const styles = {
     "sticky bottom-0 -mx-4 border-t border-slate-800/80 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent px-4 pb-1 pt-3",
   primaryButton: "", // use Button variant primary
   sidePanel:
-    "overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900/80 shadow-[0_18px_60px_rgba(15,23,42,0.9)] p-4",
-  sidePanelBody: "space-y-4",
+    "min-w-0 overflow-hidden rounded-2xl border border-slate-800/80 bg-gradient-to-br from-slate-950 via-slate-950 to-slate-900/80 p-4 shadow-[0_18px_60px_rgba(15,23,42,0.9)]",
+  sidePanelHeader: "space-y-1",
+  sidePanelContent: "mt-4 min-w-0 space-y-4",
+  sidePanelBody: "min-w-0 space-y-4",
   metaGrid:
-    "grid gap-3 sm:grid-cols-2 text-xs text-slate-400 [&_strong]:text-slate-200 [&_code]:break-all [&_code]:font-mono [&_code]:text-[11px] [&_code]:text-indigo-300/90",
-  metaField: "rounded-lg border border-slate-800/60 bg-slate-950/40 px-2.5 py-2",
+    "grid min-w-0 grid-cols-1 gap-3 text-xs text-slate-400 md:grid-cols-2 [&_strong]:text-slate-200 [&_code]:break-all [&_code]:font-mono [&_code]:text-[11px] [&_code]:text-indigo-300/90",
+  metaField: "min-w-0 overflow-hidden rounded-lg border border-slate-800/60 bg-slate-950/40 px-2.5 py-2",
+  metaFieldValue: "mt-1 break-words font-medium text-slate-200",
   exportSection: "space-y-4 sm:col-span-2",
   exportGroup: "space-y-2",
   exportStack: "flex flex-col gap-1.5",
