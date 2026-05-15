@@ -1,10 +1,16 @@
 "use client";
 
+import { Play } from "lucide-react";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { LiveBadge } from "@/components/dashboard/live-badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 
 import { JsonTree } from "../components/JsonTree";
 import { useToast } from "../components/DashboardChrome";
-import styles from "../dashboard.module.css";
+import { checkboxClass, selectClass, styles } from "./controlWorkbenchStyles";
 import { API_BASE, fetchJson, fetchListingDetailsForRun, formatThrownApiError } from "../lib/api";
 import { buildExportMetadata, exportRankingCsv, exportRankingJson } from "../lib/exportRanking";
 import type {
@@ -509,8 +515,8 @@ export function ControlWorkbench() {
     <main className={styles.main}>
       <header className={styles.topHeader}>
         <div>
-          <p className={styles.envBadge}>Live ranking environment</p>
-          <h1 className={styles.title}>Control Panel</h1>
+          <LiveBadge />
+          <h1 className={styles.title}>Dashboard Control Center</h1>
           <p className={styles.subTitle}>
             Configure sources, filters, and strategy — then inspect ranked listings and exports.
           </p>
@@ -548,26 +554,43 @@ export function ControlWorkbench() {
       ) : null}
 
       <section className={styles.mainGrid}>
-        <form onSubmit={onSubmit} className={styles.controlPanel}>
+        <form onSubmit={onSubmit} className={cn(styles.controlPanel, "flex flex-col")}>
+          <div className="space-y-3 border-b border-slate-800/80 px-4 pb-3 pt-4">
           <div className={styles.rowBetween}>
-            <h2 className={styles.sectionTitle}>Ranking workbench</h2>
+            <h2 className={styles.sectionTitle}>Main Control Panel</h2>
             <div className={styles.actions}>
-              <button
+              <Button
                 type="button"
-                className={styles.ghostButton}
+                variant="ghost"
+                size="sm"
                 onClick={() => setSelectedSources(sources.map((s) => s.source))}
               >
-                Select all sources
-              </button>
-              <button type="button" className={styles.ghostButton} onClick={() => setSelectedSources([])}>
-                Clear sources
-              </button>
+                Select all
+                </Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setSelectedSources([])}>
+                Clear
+                </Button>
             </div>
           </div>
           <p className={styles.sectionHint}>
-            Grouped cards: sources, validation snapshot, filters, strategy, and result window.
+            Configure sources, filters, and strategy — then run ranking.
           </p>
-
+          <div className="mb-1 space-y-1.5">
+            <div className="flex items-center justify-between text-[11px] text-slate-500">
+              <span>Telemetry — {loading ? "Running" : ranking ? "Complete" : "Idle"}</span>
+              {loading ? <span className="font-mono text-indigo-400">processing</span> : null}
+            </div>
+            <div className="h-2 overflow-hidden rounded-full border border-slate-800/70 bg-slate-900">
+              <div
+                className={cn(
+                  "h-full rounded-full bg-gradient-to-r from-indigo-500 via-sky-400 to-emerald-400 transition-all duration-500",
+                  loading ? "w-2/3 animate-pulse" : ranking ? "w-full" : "w-0",
+                )}
+              />
+            </div>
+          </div>
+          </div>
+          <div className="space-y-4 px-4 py-4">
           <div className={styles.card}>
             <h3 className={styles.blockTitle}>Sources</h3>
             <div className={styles.sourceList}>
@@ -587,6 +610,7 @@ export function ControlWorkbench() {
                   <label key={source.source} className={styles.sourceItem}>
                     <input
                       type="checkbox"
+                      className={cn(checkboxClass, "shrink-0")}
                       checked={selectedSources.includes(source.source)}
                       onChange={(event) =>
                         setSelectedSources((current) =>
@@ -596,10 +620,12 @@ export function ControlWorkbench() {
                         )
                       }
                     />
-                    <span>{source.source}</span>
-                    <small>
-                      {source.status} · {source.records_valid}/{source.records_total} valid
-                    </small>
+                    <div className={styles.sourceItemBody}>
+                      <span className={styles.sourceItemTitle}>{source.source}</span>
+                      <span className={styles.sourceItemMeta}>
+                        {source.status} · {source.records_valid}/{source.records_total} valid
+                      </span>
+                    </div>
                   </label>
                 ))
               )}
@@ -626,27 +652,27 @@ export function ControlWorkbench() {
           <div className={styles.card}>
             <h3 className={styles.blockTitle}>Filters</h3>
             <div className={styles.grid}>
-              <input placeholder="Province" value={province} onChange={(e) => setProvince(e.target.value)} />
-              <input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
-              <input placeholder="Suburb" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
-              <input placeholder="Price min" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
-              <input placeholder="Price max" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
-              <input
+              <Input placeholder="Province" value={province} onChange={(e) => setProvince(e.target.value)} />
+              <Input placeholder="City" value={city} onChange={(e) => setCity(e.target.value)} />
+              <Input placeholder="Suburb" value={suburb} onChange={(e) => setSuburb(e.target.value)} />
+              <Input placeholder="Price min" value={priceMin} onChange={(e) => setPriceMin(e.target.value)} />
+              <Input placeholder="Price max" value={priceMax} onChange={(e) => setPriceMax(e.target.value)} />
+              <Input
                 placeholder="Property type"
                 value={propertyType}
                 onChange={(e) => setPropertyType(e.target.value)}
               />
-              <input
+              <Input
                 placeholder="Bedrooms min"
                 value={bedroomsMin}
                 onChange={(e) => setBedroomsMin(e.target.value)}
               />
-              <input
+              <Input
                 placeholder="Bathrooms min"
                 value={bathroomsMin}
                 onChange={(e) => setBathroomsMin(e.target.value)}
               />
-              <input
+              <Input
                 placeholder="Confidence min"
                 value={confidenceMin}
                 onChange={(e) => setConfidenceMin(e.target.value)}
@@ -656,7 +682,7 @@ export function ControlWorkbench() {
 
           <div className={styles.card}>
             <h3 className={styles.blockTitle}>Strategy profile</h3>
-            <select value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
+            <select className={selectClass} value={selectedPreset} onChange={(e) => setSelectedPreset(e.target.value)}>
               {profiles.map((profile) => (
                 <option key={profile.preset} value={profile.preset}>
                   {profile.label}
@@ -671,7 +697,7 @@ export function ControlWorkbench() {
                     <span>
                       {signal} [{bounds.min.toFixed(3)}, {bounds.max.toFixed(3)}]
                     </span>
-                    <input
+                    <Input
                       value={overrides[signal] ?? ""}
                       onChange={(e) => setOverrideValue(signal, e.target.value)}
                       placeholder={String(profileDetail.default_weights[signal] ?? "")}
@@ -680,9 +706,9 @@ export function ControlWorkbench() {
                 );
               })}
             </div>
-            <button type="button" className={styles.ghostButton} onClick={resetOverrides}>
+            <Button type="button" variant="ghost" size="sm" onClick={resetOverrides}>
               Reset overrides to preset
-            </button>
+                </Button>
           </div>
 
           <div className={styles.card}>
@@ -691,6 +717,7 @@ export function ControlWorkbench() {
               <label className={styles.radio}>
                 <input
                   type="radio"
+                  className="accent-indigo-500"
                   checked={windowMode === "top_n"}
                   onChange={() => setWindowMode("top_n")}
                 />
@@ -699,6 +726,7 @@ export function ControlWorkbench() {
               <label className={styles.radio}>
                 <input
                   type="radio"
+                  className="accent-indigo-500"
                   checked={windowMode === "pagination"}
                   onChange={() => setWindowMode("pagination")}
                 />
@@ -706,19 +734,21 @@ export function ControlWorkbench() {
               </label>
             </div>
             {windowMode === "top_n" ? (
-              <input value={topN} onChange={(e) => setTopN(e.target.value)} placeholder="Top N" />
+              <Input value={topN} onChange={(e) => setTopN(e.target.value)} placeholder="Top N" />
             ) : (
               <div className={styles.inline}>
-                <input value={page} onChange={(e) => setPage(e.target.value)} placeholder="Page" />
-                <input value={pageSize} onChange={(e) => setPageSize(e.target.value)} placeholder="Page size" />
+                <Input value={page} onChange={(e) => setPage(e.target.value)} placeholder="Page" />
+                <Input value={pageSize} onChange={(e) => setPageSize(e.target.value)} placeholder="Page size" />
               </div>
             )}
           </div>
 
           <div className={styles.stickyActions}>
-            <button type="submit" className={styles.primaryButton} disabled={loading}>
+            <Button type="submit" variant="primary" disabled={loading} className="w-full sm:w-auto">
+              <Play className="h-3.5 w-3.5" aria-hidden />
               {loading ? "Running…" : "Run ranking"}
-            </button>
+                </Button>
+          </div>
           </div>
         </form>
 
@@ -727,130 +757,166 @@ export function ControlWorkbench() {
           <p className={styles.sectionHint}>Reproducibility: run id, profile, and dataset freshness.</p>
           {ranking ? (
             <div className={styles.metaGrid}>
-              <p>
+              <div className={styles.metaField}>
                 <span className={styles.mutedLabel}>run_id</span>
-                <br />
-                <code>{ranking.run_id}</code>{" "}
-                <button
-                  type="button"
-                  className={styles.iconBtn}
-                  onClick={() => void copyText(ranking.run_id).then(() => pushToast("Copied run id"))}
-                >
-                  Copy
-                </button>
-              </p>
-              <p>
-                profile_id: <strong>{ranking.resolved_profile.profile_id}</strong>
-              </p>
-              <p>profile_version: {ranking.resolved_profile.profile_version}</p>
-              <p>model_version: {ranking.dataset_context.model_version ?? "n/a"}</p>
-              <p>last_ingested_at: {ranking.dataset_context.last_ingested_at ?? "n/a"}</p>
-              <p>last_scored_at: {ranking.dataset_context.last_scored_at ?? "n/a"}</p>
+                <div className="mt-1 flex flex-wrap items-center gap-2">
+                  <code>{ranking.run_id}</code>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 px-2 text-[10px]"
+                    onClick={() => void copyText(ranking.run_id).then(() => pushToast("Copied run id"))}
+                  >
+                    Copy
+                  </Button>
+                </div>
+              </div>
+              <div className={styles.metaField}>
+                <span className={styles.mutedLabel}>profile_id</span>
+                <p className="mt-1 font-medium text-slate-200">{ranking.resolved_profile.profile_id}</p>
+              </div>
+              <div className={styles.metaField}>
+                <span className={styles.mutedLabel}>profile_version</span>
+                <p className="mt-1">{ranking.resolved_profile.profile_version}</p>
+              </div>
+              <div className={styles.metaField}>
+                <span className={styles.mutedLabel}>model_version</span>
+                <p className="mt-1">{ranking.dataset_context.model_version ?? "n/a"}</p>
+              </div>
+              <div className={cn(styles.metaField, "sm:col-span-2")}>
+                <span className={styles.mutedLabel}>last_ingested_at</span>
+                <p className="mt-1 break-all font-mono text-[11px]">
+                  {ranking.dataset_context.last_ingested_at ?? "n/a"}
+                </p>
+              </div>
+              <div className={cn(styles.metaField, "sm:col-span-2")}>
+                <span className={styles.mutedLabel}>last_scored_at</span>
+                <p className="mt-1">{ranking.dataset_context.last_scored_at ?? "n/a"}</p>
+              </div>
+              <div className={styles.exportSection}>
               <p className={styles.sectionHint}>
-                Summary rows match the results table. “Full detail” adds the same payload as the Detail action
-                (listing_core, score_summary, diagnostics) per listing.
+                Summary rows match the results table. Full-detail exports include listing_core,
+                score_summary, and diagnostics.
               </p>
-              <p className={styles.blockTitle}>Summary</p>
-              <div className={styles.exportGrid}>
-                <button
+              <div className={styles.exportGroup}>
+              <p className={styles.blockTitle}>Summary exports</p>
+              <div className={styles.exportStack}>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => exportWindow("csv")}
                 >
                   Export window CSV
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => exportWindow("json")}
                 >
                   Export window JSON
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => exportShortlistOnly("csv")}
                 >
                   Export shortlist CSV
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => exportShortlistOnly("json")}
                 >
                   Export shortlist JSON
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => void exportServerRun("csv", false)}
                 >
                   Download full run (server CSV)
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => void exportServerRun("json", false)}
                 >
                   Download full run (server JSON)
-                </button>
+                </Button>
               </div>
+              </div>
+              <div className={styles.exportGroup}>
               <p className={styles.blockTitle}>With full listing detail</p>
-              <div className={styles.exportGrid}>
-                <button
+              <div className={styles.exportStack}>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => void exportWindowWithDetail("csv")}
                 >
                   Export window CSV (full detail)
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => void exportWindowWithDetail("json")}
                 >
                   Export window JSON (full detail)
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => void exportShortlistWithDetail("csv")}
                 >
                   Export shortlist CSV (full detail)
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => void exportShortlistWithDetail("json")}
                 >
                   Export shortlist JSON (full detail)
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => void exportServerRun("csv", true)}
                 >
                   Download full run — server CSV (full detail)
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
-                  className={styles.secondaryButton}
+                  variant="outline"
+                  className={styles.exportBtn}
                   disabled={exportDetailBusy}
                   onClick={() => void exportServerRun("json", true)}
                 >
                   Download full run — server JSON (full detail)
-                </button>
+                </Button>
+              </div>
+              </div>
               </div>
             </div>
           ) : (
@@ -862,8 +928,10 @@ export function ControlWorkbench() {
       <section className={styles.bottomGrid}>
         <section className={styles.resultsPanel}>
           <div className={styles.rowBetween}>
-            <h2 className={styles.sectionTitle}>Ranked results</h2>
-            <span className={styles.mutedLabel}>{ranking?.results.length ?? 0} rows</span>
+            <h2 className={styles.sectionTitle}>Latest listings</h2>
+            <span className="inline-flex items-center rounded-full border border-slate-800/80 bg-slate-900/80 px-2 py-0.5 font-mono text-[10px] text-slate-400">
+              {ranking?.results.length ?? 0} rows
+            </span>
           </div>
           {!ranking ? (
             <p className={styles.mutedLabel}>Run ranking to populate the results table.</p>
@@ -877,6 +945,7 @@ export function ControlWorkbench() {
                   <label key={key}>
                     <input
                       type="checkbox"
+                      className={checkboxClass}
                       checked={columns[key] !== false}
                       onChange={(e) => setColumns((c) => ({ ...c, [key]: e.target.checked }))}
                     />
@@ -966,26 +1035,39 @@ export function ControlWorkbench() {
                       {columns.source_site ? <th>Source</th> : null}
                       {columns.listing_url ? <th>Listing URL</th> : null}
                       {columns.shortlist ? <th>★</th> : null}
-                      {columns.actions ? <th>Actions</th> : null}
+                      {columns.actions ? <th className={styles.tableActionsCol}>Actions</th> : null}
                     </tr>
                   </thead>
                   <tbody>
                     {sortedResults.map((result) => (
                       <tr
                         key={result.listing_id}
-                        className={activeListingId === result.listing_id ? styles.selectedRow : undefined}
+                        className={cn(
+                          styles.tableRow,
+                          activeListingId === result.listing_id && styles.selectedRow,
+                        )}
                       >
-                        <td>{result.listing_id}</td>
-                        {columns.score ? <td>{result.score.toFixed(4)}</td> : null}
+                        <td className="font-mono text-[11px] text-slate-400">{result.listing_id}</td>
+                        {columns.score ? (
+                          <td className="font-mono text-[11px] text-slate-300">{result.score.toFixed(4)}</td>
+                        ) : null}
                         {columns.confidence ? <td>{result.confidence.toFixed(2)}</td> : null}
-                        {columns.price ? <td>{String(result.summary.price ?? "—")}</td> : null}
+                        {columns.price ? (
+                          <td className="font-semibold text-indigo-400">
+                            {String(result.summary.price ?? "—")}
+                          </td>
+                        ) : null}
                         {columns.city ? <td>{String(result.summary.city ?? "—")}</td> : null}
                         {columns.suburb ? <td>{String(result.summary.suburb ?? "—")}</td> : null}
                         {columns.province ? <td>{String(result.province ?? "—")}</td> : null}
                         {columns.property_type ? <td>{String(result.summary.property_type ?? "—")}</td> : null}
                         {columns.bedrooms ? <td>{result.bedrooms ?? "—"}</td> : null}
                         {columns.bathrooms ? <td>{result.bathrooms ?? "—"}</td> : null}
-                        {columns.deal_reason ? <td>{result.deal_reason}</td> : null}
+                        {columns.deal_reason ? (
+                          <td className={styles.tableCellWrap} title={result.deal_reason}>
+                            <span className="line-clamp-2">{result.deal_reason}</span>
+                          </td>
+                        ) : null}
                         {columns.source_site ? <td>{result.source_site ?? "—"}</td> : null}
                         {columns.listing_url ? (
                           <td>
@@ -998,39 +1080,39 @@ export function ControlWorkbench() {
                         ) : null}
                         {columns.shortlist ? (
                           <td>
-                            <button
+                            <Button
                               type="button"
-                              className={styles.iconBtn}
+                              variant="ghost"
+                              size="iconSm"
                               aria-pressed={shortlist.has(result.listing_id)}
                               onClick={() => toggleShortlist(result.listing_id)}
                             >
                               {shortlist.has(result.listing_id) ? "★" : "☆"}
-                            </button>
+                            </Button>
                           </td>
                         ) : null}
                         {columns.actions ? (
-                          <td>
+                          <td className={styles.tableActionsCol}>
                             <div className={styles.rowActions}>
-                              <button
+                              <Button
                                 type="button"
-                                className={styles.iconBtn}
+                                variant="outline"
+                                className={styles.rowActionBtn}
                                 onClick={() => void onFetchDetail(result.listing_id)}
                               >
                                 Detail
-                              </button>
+                              </Button>
                               {result.listing_url ? (
-                                <a
-                                  className={styles.iconBtn}
-                                  href={result.listing_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  Open
-                                </a>
+                                <Button variant="outline" className={styles.rowActionBtn} asChild>
+                                  <a href={result.listing_url} target="_blank" rel="noopener noreferrer">
+                                    Open
+                                  </a>
+                                </Button>
                               ) : null}
-                              <button
+                              <Button
                                 type="button"
-                                className={styles.iconBtn}
+                                variant="outline"
+                                className={styles.rowActionBtn}
                                 disabled={!result.listing_url}
                                 onClick={() =>
                                   result.listing_url
@@ -1040,19 +1122,8 @@ export function ControlWorkbench() {
                                     : undefined
                                 }
                               >
-                                Copy URL
-                              </button>
-                              <button
-                                type="button"
-                                className={styles.iconBtn}
-                                onClick={() =>
-                                  void copyText(String(result.listing_id)).then(() =>
-                                    pushToast("Copied listing id"),
-                                  )
-                                }
-                              >
-                                Copy id
-                              </button>
+                                URL
+                              </Button>
                             </div>
                           </td>
                         ) : null}
@@ -1087,13 +1158,14 @@ export function ControlWorkbench() {
                     <a href={listingUrlStr} target="_blank" rel="noopener noreferrer">
                       Open listing
                     </a>
-                    <button
+                    <Button
                       type="button"
-                      className={styles.iconBtn}
+                      variant="outline"
+                      size="sm"
                       onClick={() => void copyText(listingUrlStr).then(() => pushToast("Copied listing URL"))}
                     >
                       Copy URL
-                    </button>
+                    </Button>
                   </>
                 ) : (
                   <span className={styles.chipWarn}>Unavailable</span>
