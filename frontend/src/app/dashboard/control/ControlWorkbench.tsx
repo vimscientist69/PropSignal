@@ -514,12 +514,14 @@ export function ControlWorkbench() {
   return (
     <main className={styles.main}>
       <header className={styles.topHeader}>
-        <div>
+        <div className="space-y-2">
           <LiveBadge />
-          <h1 className={styles.title}>Dashboard Control Center</h1>
-          <p className={styles.subTitle}>
-            Configure sources, filters, and strategy — then inspect ranked listings and exports.
-          </p>
+          <div className="space-y-1">
+            <h1 className={styles.title}>Dashboard Control Center</h1>
+            <p className={styles.subTitle}>
+              Configure sources, filters, and strategy — then inspect ranked listings and exports.
+            </p>
+          </div>
         </div>
         <div className={styles.topStats}>
           <div className={styles.statTile}>
@@ -975,7 +977,7 @@ export function ControlWorkbench() {
                 ))}
               </div>
               <div className={styles.dataTableWrap}>
-                <table className={styles.dataTable}>
+                <table className={cn(styles.dataTable, styles.listingsDataTable)}>
                   <thead>
                     <tr>
                       <th>

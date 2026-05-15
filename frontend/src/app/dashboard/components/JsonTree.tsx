@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import styles from "../dashboard.module.css";
+import { jsonTreeStyles as s } from "../dashboardPageStyles";
 
 type JsonTreeProps = {
   data: unknown;
@@ -15,14 +15,14 @@ function JsonArrayTree({ data, depth, path }: { data: unknown[]; depth: number; 
     data.length > 0 && depth >= 1 && (data.length > 6 || path.includes("normalized_payload"));
   const [open, setOpen] = useState(!defaultClosed);
   if (data.length === 0) {
-    return <span className={styles.emptyKV}>—</span>;
+    return <span className={s.empty}>—</span>;
   }
   return (
-    <div className={styles.jsonTree}>
+    <div className={s.tree}>
       {depth >= 1 ? (
         <button
           type="button"
-          className={styles.jsonToggle}
+          className={s.toggle}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
@@ -30,10 +30,10 @@ function JsonArrayTree({ data, depth, path }: { data: unknown[]; depth: number; 
         </button>
       ) : null}
       {(depth < 1 || open) && (
-        <div className={depth >= 1 ? styles.jsonRow : undefined}>
+        <div className={depth >= 1 ? s.row : undefined}>
           {data.map((item, i) => (
-            <div key={i} className={styles.jsonRow}>
-              <span className={styles.jsonKey}>[{i}]: </span>
+            <div key={i} className={s.row}>
+              <span className={s.key}>[{i}]: </span>
               <JsonTree data={item} depth={depth + 1} path={`${path}[${i}]`} />
             </div>
           ))}
@@ -57,14 +57,14 @@ function JsonObjectTree({
     keys.length > 0 && depth >= 1 && (path.includes("normalized_payload") || keys.length > 14);
   const [open, setOpen] = useState(!defaultClosed);
   if (keys.length === 0) {
-    return <span className={styles.emptyKV}>—</span>;
+    return <span className={s.empty}>—</span>;
   }
   return (
-    <div className={styles.jsonTree}>
+    <div className={s.tree}>
       {depth >= 1 ? (
         <button
           type="button"
-          className={styles.jsonToggle}
+          className={s.toggle}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >
@@ -72,10 +72,10 @@ function JsonObjectTree({
         </button>
       ) : null}
       {(depth < 1 || open) && (
-        <div className={depth >= 1 ? styles.jsonRow : undefined}>
+        <div className={depth >= 1 ? s.row : undefined}>
           {keys.map((k) => (
-            <div key={k} className={styles.jsonRow}>
-              <span className={styles.jsonKey}>{k}: </span>
+            <div key={k} className={s.row}>
+              <span className={s.key}>{k}: </span>
               <JsonTree data={data[k]} depth={depth + 1} path={path ? `${path}.${k}` : k} />
             </div>
           ))}
@@ -87,11 +87,11 @@ function JsonObjectTree({
 
 export function JsonTree({ data, depth = 0, path = "" }: JsonTreeProps) {
   if (data === null || data === undefined) {
-    return <span className={styles.emptyKV}>—</span>;
+    return <span className={s.empty}>—</span>;
   }
   if (typeof data !== "object") {
     if (typeof data === "string" && data.length === 0) {
-      return <span className={styles.emptyKV}>—</span>;
+      return <span className={s.empty}>—</span>;
     }
     return <span>{String(data)}</span>;
   }
