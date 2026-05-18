@@ -171,7 +171,12 @@ def _parse_weight_overrides(values: list[str]) -> dict[str, float]:
     return parsed
 
 
-def _emit_json_payload(payload: dict[str, Any], output_json: str | None, *, pretty: bool = False) -> None:
+def _emit_json_payload(
+    payload: dict[str, Any],
+    output_json: str | None,
+    *,
+    pretty: bool = False
+) -> None:
     content = json.dumps(payload, indent=2 if pretty else None)
     typer.echo(content)
     if output_json:
