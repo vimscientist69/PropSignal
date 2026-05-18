@@ -22,17 +22,15 @@ Built as a portfolio project demonstrating end-to-end backend design, API contra
 
 ## Screenshots
 
-<img width="1855" height="993" alt="image" src="https://github.com/user-attachments/assets/1fd4d0ed-7cd2-4da9-8cf8-43a2abc9663f" />
+<img width="1851" height="984" alt="propsignal-en-1" src="https://github.com/user-attachments/assets/d9a6b2c4-856a-4a66-b9bb-61850a9ae478" />
 
-<img width="1851" height="997" alt="image" src="https://github.com/user-attachments/assets/d9920697-375d-4e6a-ac88-a0f3da9f5095" />
+<img width="1848" height="985" alt="propsignal-en-2" src="https://github.com/user-attachments/assets/3002f61e-1283-4041-949d-0111068fad49" />
 
-<img width="1862" height="975" alt="image" src="https://github.com/user-attachments/assets/17bdafb4-2be0-4684-9233-2c47576420a5" />
+<img width="1862" height="995" alt="propsignal-en-3" src="https://github.com/user-attachments/assets/dc6c65f2-4f9f-4f60-a9a9-bcf2862d848c" />
 
-<img width="1864" height="980" alt="image" src="https://github.com/user-attachments/assets/c6a03b16-5d21-4a96-a0a9-758a24c27a4b" />
+<img width="1863" height="996" alt="propsignal-en-4" src="https://github.com/user-attachments/assets/750f351c-4bc9-423f-b0b0-152936db28de" />
 
-<img width="1866" height="994" alt="image" src="https://github.com/user-attachments/assets/3d907670-404a-4d29-a0b5-ac13c77fe6a0" />
-
-
+<img width="1863" height="989" alt="propsignal-en-5" src="https://github.com/user-attachments/assets/03f2bc1e-54f0-46eb-991b-70aa40eaf67d" />
 
 ---
 
